@@ -1,0 +1,63 @@
+# stacked.yml - Stacker Build Configuration for Agent-Commerce
+
+# Source for base image
+{
+  "build_format": "oci-archive",
+  "arch": {
+    "native": "$STACKER_ARCH"
+  },
+  "base": "ubuntu:22.04",
+  "run": |
+    # Install Python and dependencies
+    apt-get update
+    apt-get install -y python3.11 python3-pip git curl
+    
+    # Install Python packages
+    pip3 install surrealdb tiktoken aiohttp fastapi uvicorn
+    
+    # Create app user
+    useradd -m -u 1000 appuser
+    
+    # Copy application
+    mkdir -p /workspace
+    chown appuser:appuser /workspace
+    
+    # Set Python path
+    ENV PYTHONPATH=/workspace
+    ENV PYTHONUNBUFFERED=1
+    
+    # Expose ports
+    EXPOSE 8000 8080
+    
+    # Set work directory
+    WORKDIR /workspace
+    
+    # Switch to app user
+    USER appuser
+    
+    # Default command
+    CMD ["python3", "-m", "http.server", "8000", "--directory", "/workspace"]
+}
+
+agents:
+  from: base
+  run: |
+    # Clone or copy repository
+    cp -r /stacker/* /workspace/
+    
+    # Install agents package
+    cd /workspace
+    pip3 install -e .
+    
+    # Set entry point
+    ENV AGENT_HOME=/workspace
+    
+    # Expose agent ports
+    EXPOSE 8000
+    
+    # Health check
+    HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+      CMD curl -f http://localhost:8000/health || exit 1
+    
+    # Default command - run agent server
+    CMD ["python3", "-m", "uvicorn", "ucp_agent:app", "--host", "0.0.0.0", "--port", "8000"]

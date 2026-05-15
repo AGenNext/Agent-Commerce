@@ -1,0 +1,71 @@
+# Docker Compose - Agent-Commerce
+# For development and testing
+
+version: '3.8'
+
+services:
+  # SurrealDB Database
+  surrealdb:
+    image: surrealdb/surrealdb:latest
+    container_name: agent-commerce-db
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    environment:
+      - SURREALDB_USER=agent
+      - SURREALDB_PASS=commerce
+      - SURREALDB_DATABASE=commerce
+    volumes:
+      - surrealdb_data:/var/lib/surrealdb
+    networks:
+      - agent-network
+    command: start --user-agent --bind 0.0.0.0:8000 --bind 0.0.0.0:8001 --auth
+
+  # Agent Commerce API
+  agent-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agent-commerce-api
+    ports:
+      - "8080:8000"
+    environment:
+      - SURREALDB_URL=ws://surrealdb:8000
+      - SURREALDB_USER=agent
+      - SURREALDB_PASS=commerce
+      - SURREALDB_DATABASE=commerce
+    depends_on:
+      - surrealdb
+    networks:
+      - agent-network
+    volumes:
+      - ./:/workspace/agent
+
+  # Agent Commerce Tests
+  agent-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agent-commerce-test
+    environment:
+      - SURREALDB_URL=mem://
+    depends_on:
+      - agent-api
+    networks:
+      - agent-network
+    entrypoint: python3
+    command: test_e2e.py
+    profiles:
+      - test
+
+volumes:
+  surrealdb_data:
+
+networks:
+  agent-network:
+    driver: bridge
+
+# Usage:
+# docker-compose up -d surrealdb
+# docker-compose up agent-api
+# docker-compose run --rm agent-test
