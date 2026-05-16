@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent-Commerce | AI-Powered E-Commerce Agents</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #0a0a0f;
+            --bg-surface: #12121a;
+            --bg-elevated: #1a1a25;
+            --accent-primary: #00ff88;
+            --accent-secondary: #00cc6a;
+            --accent-glow: rgba(0, 255, 136, 0.3);
+            --text-primary: #f0f0f5;
+            --text-secondary: #8888a0;
+            --text-muted: #55556a;
+            --border-subtle: #2a2a3a;
+            --gradient-mesh: radial-gradient(ellipse at 20% 20%, rgba(0, 255, 136, 0.08) 0%, transparent 50%),
+                          radial-gradient(ellipse at 80% 80%, rgba(100, 100, 255, 0.06) 0%, transparent 50%),
+                          radial-gradient(ellipse at 50% 50%, rgba(255, 100, 100, 0.04) 0%, transparent 60%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Space Mono', monospace;
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Background */
+        .bg-mesh {
+            position: fixed;
+            inset: 0;
+            background: var(--gradient-mesh);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .noise {
+            position: fixed;
+            inset: 0;
+            background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Grid */
+        .grid-lines {
+            position: fixed;
+            inset: 0;
+            background-image: 
+                linear-gradient(var(--border-subtle) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px);
+            background-size: 60px 60px;
+            opacity: 0.3;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Header */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 20px 0;
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            text-decoration: none;
+            letter-spacing: -0.02em;
+        }
+
+        .logo span {
+            color: var(--accent-primary);
+        }
+
+        nav {
+            display: flex;
+            gap: 32px;
+            align-items: center;
+        }
+
+        nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.2s;
+        }
+
+        nav a:hover {
+            color: var(--accent-primary);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            background: var(--accent-primary);
+            color: var(--bg-deep);
+            font-family: 'Space Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: var(--accent-secondary);
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px var(--accent-glow);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            color: var(--text-primary);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+            box-shadow: none;
+        }
+
+        /* Hero */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 120px 0 80px;
+        }
+
+        .hero-content {
+            max-width: 800px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: 100px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .badge-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(3rem, 8vw, 5.5rem);
+            font-weight: 800;
+            line-height: 1.05;
+            letter-spacing: -0.03em;
+            margin-bottom: 24px;
+            animation: fadeInUp 0.6s ease-out 0.1s both;
+        }
+
+        h1 .line {
+            display: block;
+        }
+
+        h1 .highlight {
+            color: var(--accent-primary);
+            position: relative;
+        }
+
+        h1 .highlight::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--accent-primary);
+            transform: scaleX(0);
+            transform-origin: left;
+            animation: expandLine 0.6s ease-out 0.8s forwards;
+        }
+
+        .hero p {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 540px;
+            margin-bottom: 40px;
+            animation: fadeInUp 0.6s ease-out 0.2s both;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            animation: fadeInUp 0.6s ease-out 0.3s both;
+        }
+
+        /* Features */
+        .features {
+            padding: 120px 0;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .section-label {
+            font-size: 0.75rem;
+            color: var(--accent-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            margin-bottom: 16px;
+        }
+
+        h2 {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .feature-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            padding: 32px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .feature-card:hover {
+            border-color: var(--accent-primary);
+            transform: translateY(-4px);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .feature-card h3 {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .feature-card p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Code Block */
+        .code-section {
+            padding: 80px 0;
+        }
+
+        .code-block {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .code-header {
+            display: flex;
+            gap: 8px;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .code-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .code-dot.red { background: #ff5f57; }
+        .code-dot.yellow { background: #febc2e; }
+        .code-dot.green { background: #28c840; }
+
+        .code-content {
+            padding: 24px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            line-height: 1.8;
+            overflow-x: auto;
+        }
+
+        .code-content .keyword { color: #ff79c6; }
+        .code-content .function { color: #50fa7b; }
+        .code-content .string { color: #f1fa8c; }
+        .code-content .comment { color: #6272a4; }
+        .code-content .number { color: #bd93f9; }
+
+        /* Stats */
+        .stats {
+            padding: 80px 0;
+            border-top: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 40px;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .stat-value {
+            font-family: 'Syne', sans-serif;
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--accent-primary);
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* CTA */
+        .cta {
+            padding: 120px 0;
+            text-align: center;
+        }
+
+        .cta h2 {
+            margin-bottom: 24px;
+        }
+
+        .cta p {
+            color: var(--text-secondary);
+            max-width: 500px;
+            margin: 0 auto 40px;
+        }
+
+        /* Footer */
+        footer {
+            padding: 40px 0;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        footer .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        footer p {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        footer a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.8rem;
+            transition: color 0.2s;
+        }
+
+        footer a:hover {
+            color: var(--accent-primary);
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes expandLine {
+            to {
+                transform: scaleX(1);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            nav {
+                display: none;
+            }
+            
+            .hero {
+                padding: 100px 0 60px;
+            }
+            
+            h1 {
+                font-size: 2.5rem;
+            }
+            
+            .hero-buttons {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-mesh"></div>
+    <div class="noise"></div>
+    <div class="grid-lines"></div>
+
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <a href="#" class="logo">Agent<span>-</span>Commerce</a>
+            <nav>
+                <a href="#features">Features</a>
+                <a href="#code">Code</a>
+                <a href="#stats">Stats</a>
+                <a href="https://github.com/AGenNext/Agent-Commerce" class="btn btn-outline">GitHub</a>
+                <a href="/" class="btn">Get Started</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="badge">
+                    <span class="badge-dot"></span>
+                    AI-Powered E-Commerce
+                </div>
+                <h1>
+                    <span class="line">Commerce Agents</span>
+                    <span class="line">Built for</span>
+                    <span class="line highlight">AutonomousTrade</span>
+                </h1>
+                <p>
+                    Universal Commerce Protocol (UCP) agents with A2A transport, 
+                    SurrealDB backend, and 8 payment protocols. Build the next generation 
+                    of agentic commerce applications.
+                </p>
+                <div class="hero-buttons">
+                    <a href="https://github.com/AGenNext/Agent-Commerce" class="btn">
+                        Deploy Now
+                    </a>
+                    <a href="#code" class="btn btn-outline">
+                        View Documentation
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header">
+                <div class="section-label">Capabilities</div>
+                <h2>Everything You Need to Build</h2>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3>UCP Commerce Agent</h3>
+                    <p>AI agent with A2A Protocol transport, SurrealDB backend, and 40+ commerce skills.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🏪</div>
+                    <h3>Store Manager</h3>
+                    <p>WooCommerce, Shopify, and Mercur integrations for multi-platform sync.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💳</div>
+                    <h3>8 Payment Protocols</h3>
+                    <p>AP2, x402, Stripe, PayPal, Mastercard, Open Banking, MPP, Shopify.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Marketplace Manager</h3>
+                    <p>Vendors, commissions, payouts, disputes, Mercur Connect, Headless API.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔐</div>
+                    <h3>Site Admin</h3>
+                    <p>Users, roles, permissions, API keys, webhooks, audit logs.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🗄️</div>
+                    <h3>SurrealDB Layer</h3>
+                    <p>Centralized data layer with CRUD, relations, search, and live queries.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Code -->
+    <section class="code-section" id="code">
+        <div class="container">
+            <div class="section-header">
+                <div class="section-label">Quick Start</div>
+                <h2>Initialize an Agent</h2>
+            </div>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-dot red"></span>
+                    <span class="code-dot yellow"></span>
+                    <span class="code-dot green"></span>
+                </div>
+                <div class="code-content">
+<span class="comment"># Install dependencies</span>
+pip install surrealdb fastapi uvicorn
+
+<span class="comment"># Create your commerce agent</span>
+<span class="keyword">from</span> ucp_agent <span class="keyword">import</span> UCPCommerceAgent
+
+agent = UCPCommerceAgent()
+card = agent.get_agent_card()
+
+<span class="comment"># Create a product</span>
+product = <span class="keyword">await</span> agent.create_product({
+    <span class="string">"title"</span>: <span class="string">"AI Widget"</span>,
+    <span class="string">"price"</span>: <span class="number">29.99</span>
+})
+
+<span class="comment"># Process payment</span>
+<span class="keyword">from</span> adapters <span class="keyword">import</span> PaymentAdapterFactory
+
+adapter = PaymentAdapterFactory.<span class="function">create</span>(<span class="string">"stripe"</span>)
+payment = <span class="keyword">await</span> adapter.create_payment(
+    <span class="number">29.99</span>, <span class="string">"USD"</span>, user_id=<span class="string">"user_123"</span>
+)
+
+<span class="comment"># Payment: pi_abc123...</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats" id="stats">
+        <div class="container">
+            <div class="stats-grid">
+                <div>
+                    <div class="stat-value">8</div>
+                    <div class="stat-label">Payment Protocols</div>
+                </div>
+                <div>
+                    <div class="stat-value">7+</div>
+                    <div class="stat-label">AI Agents</div>
+                </div>
+                <div>
+                    <div class="stat-value">57</div>
+                    <div class="stat-label">Tests Passing</div>
+                </div>
+                <div>
+                    <div class="stat-value">7K+</div>
+                    <div class="stat-label">Lines of Code</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+        <div class="container">
+            <h2>Start Building Today</h2>
+            <p>Deploy autonomous commerce agents with the most comprehensive payment protocol support available.</p>
+            <a href="https://github.com/AGenNext/Agent-Commerce" class="btn">
+                View on GitHub
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>Agent-Commerce © 2026 — Built with UCP + SurrealDB</p>
+            <div>
+                <a href="https://github.com/AGenNext/Agent-Commerce">GitHub</a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
