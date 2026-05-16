@@ -1,6 +1,6 @@
 # Agent-Commerce 🛒🤖
 
-AI-powered e-commerce agents built with Universal Commerce Protocol (UCP), A2A transport, and SurrealDB.
+AI-powered e-commerce agents built with Universal Commerce Protocol (UCP), Agents Payment Protocol(AP2), A2A Protocol.
 
 ![Tests](https://img.shields.io/badge/tests-57%20passed-green)
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
