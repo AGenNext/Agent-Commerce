@@ -5,6 +5,7 @@ AI-powered e-commerce agents built with Universal Commerce Protocol (UCP), Agent
 ![Tests](https://img.shields.io/badge/tests-57%20passed-green)
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
 ![License](https://img.shields.io/badge/license-Apache2-orange)
+![Docker](https://github.com/AGenNext/Agent-Commerce/actions/workflows/docker-publish.yml/badge.svg)
 
 ## Features
 
@@ -61,6 +62,15 @@ docker build -t agent-commerce .
 
 # Run
 docker run -p 8000:8000 agent-commerce
+```
+
+## Deploy
+
+The repository publishes a container image to GitHub Container Registry on every push to `main`.
+
+```bash
+docker pull ghcr.io/agennext/agent-commerce:latest
+docker run -p 8000:8000 ghcr.io/agennext/agent-commerce:latest
 ```
 
 ## API Server
