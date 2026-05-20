@@ -25,11 +25,6 @@ DEFINE INDEX merchants_tenant ON merchants FIELDS tenant_id;
 DEFINE INDEX merchants_schema_url ON merchants FIELDS schema_url;
 DEFINE INDEX merchants_name_search ON merchants FIELDS name SEARCH ANALYZER ascii BM25;
 
--- ============================================================
--- Catalog
--- Schema.org: Product, ProductModel, ProductGroup, IndividualProduct, Brand
--- ============================================================
-
 DEFINE TABLE brands SCHEMAFULL;
 DEFINE FIELD schema_context ON brands TYPE string DEFAULT 'https://schema.org';
 DEFINE FIELD schema_type ON brands TYPE string DEFAULT 'Brand';
@@ -70,11 +65,6 @@ DEFINE INDEX products_name_search ON products FIELDS name SEARCH ANALYZER ascii 
 DEFINE INDEX products_description_search ON products FIELDS description SEARCH ANALYZER ascii BM25;
 DEFINE INDEX products_category ON products FIELDS category;
 
--- ============================================================
--- Offers and pricing
--- Schema.org: Offer, AggregateOffer, Demand, PriceSpecification
--- ============================================================
-
 DEFINE TABLE offers SCHEMAFULL;
 DEFINE FIELD schema_context ON offers TYPE string DEFAULT 'https://schema.org';
 DEFINE FIELD schema_type ON offers TYPE string DEFAULT 'Offer' ASSERT $value IN ['Offer', 'AggregateOffer', 'Demand', 'PriceSpecification'];
@@ -97,11 +87,6 @@ DEFINE INDEX offers_seller ON offers FIELDS seller;
 DEFINE INDEX offers_tenant ON offers FIELDS tenant_id;
 DEFINE INDEX offers_schema_url ON offers FIELDS schema_url;
 DEFINE INDEX offers_price ON offers FIELDS price;
-
--- ============================================================
--- Orders
--- Schema.org: Order, OrderItem, Invoice
--- ============================================================
 
 DEFINE TABLE orders SCHEMAFULL;
 DEFINE FIELD schema_context ON orders TYPE string DEFAULT 'https://schema.org';
@@ -135,21 +120,28 @@ DEFINE FIELD schema_context ON invoices TYPE string DEFAULT 'https://schema.org'
 DEFINE FIELD schema_type ON invoices TYPE string DEFAULT 'Invoice';
 DEFINE FIELD schema_url ON invoices TYPE string VALUE 'https://schema.org/Invoice';
 DEFINE FIELD accountId ON invoices TYPE option<string>;
+DEFINE FIELD billingPeriod ON invoices TYPE option<object>;
+DEFINE FIELD broker ON invoices TYPE option<record>;
+DEFINE FIELD category ON invoices TYPE option<string>;
+DEFINE FIELD confirmationNumber ON invoices TYPE option<string>;
 DEFINE FIELD customer ON invoices TYPE record<users>;
+DEFINE FIELD minimumPaymentDue ON invoices TYPE option<decimal>;
+DEFINE FIELD paymentDueDate ON invoices TYPE option<datetime>;
+DEFINE FIELD paymentMethod ON invoices TYPE option<string>;
+DEFINE FIELD paymentMethodId ON invoices TYPE option<string>;
+DEFINE FIELD paymentStatus ON invoices TYPE string DEFAULT 'pending';
 DEFINE FIELD provider ON invoices TYPE record<merchants>;
 DEFINE FIELD referencesOrder ON invoices TYPE record<orders>;
-DEFINE FIELD totalPaymentDue ON invoices TYPE decimal;
-DEFINE FIELD paymentStatus ON invoices TYPE string DEFAULT 'pending';
-DEFINE FIELD paymentMethod ON invoices TYPE option<string>;
 DEFINE FIELD scheduledPaymentDate ON invoices TYPE option<datetime>;
+DEFINE FIELD totalPaymentDue ON invoices TYPE decimal;
 DEFINE FIELD created_at ON invoices TYPE datetime DEFAULT time::now();
+DEFINE FIELD updated_at ON invoices TYPE datetime VALUE time::now();
 DEFINE INDEX invoices_order ON invoices FIELDS referencesOrder;
 DEFINE INDEX invoices_schema_url ON invoices FIELDS schema_url;
-
--- ============================================================
--- Payments and fulfillment
--- Schema.org: PaymentMethod, ParcelDelivery, MerchantReturnPolicy
--- ============================================================
+DEFINE INDEX invoices_customer ON invoices FIELDS customer;
+DEFINE INDEX invoices_provider ON invoices FIELDS provider;
+DEFINE INDEX invoices_payment_status ON invoices FIELDS paymentStatus;
+DEFINE INDEX invoices_confirmation_number ON invoices FIELDS confirmationNumber;
 
 DEFINE TABLE payment_methods SCHEMAFULL;
 DEFINE FIELD schema_context ON payment_methods TYPE string DEFAULT 'https://schema.org';
@@ -211,11 +203,6 @@ DEFINE FIELD created_at ON return_policies TYPE datetime DEFAULT time::now();
 DEFINE INDEX return_policies_merchant ON return_policies FIELDS merchant;
 DEFINE INDEX return_policies_schema_url ON return_policies FIELDS schema_url;
 
--- ============================================================
--- Social proof
--- Schema.org: Review, Rating, AggregateRating
--- ============================================================
-
 DEFINE TABLE reviews SCHEMAFULL;
 DEFINE FIELD schema_context ON reviews TYPE string DEFAULT 'https://schema.org';
 DEFINE FIELD schema_type ON reviews TYPE string DEFAULT 'Review';
@@ -229,10 +216,6 @@ DEFINE FIELD created_at ON reviews TYPE datetime DEFAULT time::now();
 DEFINE INDEX reviews_product ON reviews FIELDS itemReviewed;
 DEFINE INDEX reviews_author ON reviews FIELDS author;
 DEFINE INDEX reviews_schema_url ON reviews FIELDS schema_url;
-
--- ============================================================
--- Graph relation tables
--- ============================================================
 
 DEFINE TABLE sells TYPE RELATION IN merchants OUT products SCHEMAFULL;
 DEFINE FIELD tenant_id ON sells TYPE string;
@@ -249,10 +232,6 @@ DEFINE FIELD created_at ON order_contains TYPE datetime DEFAULT time::now();
 
 DEFINE TABLE fulfilled_by TYPE RELATION IN orders OUT deliveries SCHEMAFULL;
 DEFINE FIELD created_at ON fulfilled_by TYPE datetime DEFAULT time::now();
-
--- ============================================================
--- Tenant-aware permissions
--- ============================================================
 
 DEFINE TABLE merchants PERMISSIONS
   FOR select WHERE $auth.role = 'admin' OR tenant_id = $auth.tenant_id,
@@ -276,6 +255,12 @@ DEFINE TABLE orders PERMISSIONS
 
 DEFINE TABLE payments PERMISSIONS
   FOR select WHERE $auth.role = 'admin' OR tenant_id = $auth.tenant_id,
+  FOR create WHERE $auth.id != NONE,
+  FOR update WHERE $auth.role = 'admin',
+  FOR delete WHERE false;
+
+DEFINE TABLE invoices PERMISSIONS
+  FOR select WHERE $auth.role = 'admin' OR customer = $auth.id,
   FOR create WHERE $auth.id != NONE,
   FOR update WHERE $auth.role = 'admin',
   FOR delete WHERE false;
