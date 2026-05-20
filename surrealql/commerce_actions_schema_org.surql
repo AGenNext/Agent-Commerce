@@ -31,6 +31,8 @@ DEFINE FIELD schema_type ON commerce_actions TYPE string ASSERT $value IN [
   'SendAction',
   'TakeAction'
 ];
+DEFINE FIELD schema_url ON commerce_actions TYPE string VALUE string::concat('https://schema.org/', schema_type);
+DEFINE FIELD schema_parent ON commerce_actions TYPE string VALUE IF schema_type IN ['BuyAction','OrderAction','PayAction','PreOrderAction','QuoteAction','RentAction','SellAction','TipAction'] THEN 'https://schema.org/TradeAction' ELSE IF schema_type IN ['BorrowAction','DonateAction','DownloadAction','GiveAction','LendAction','MoneyTransfer','ReceiveAction','ReturnAction','SendAction','TakeAction'] THEN 'https://schema.org/TransferAction' ELSE IF schema_type IN ['SearchAction','FindAction','CheckAction','DiscoverAction','TrackAction'] THEN 'https://schema.org/FindAction' ELSE 'https://schema.org/Action' END;
 
 -- Schema.org Action fields
 DEFINE FIELD agent ON commerce_actions TYPE option<record<users>>;
@@ -61,6 +63,7 @@ DEFINE FIELD updated_at ON commerce_actions TYPE datetime VALUE time::now();
 
 -- Indexes for analytics, retrieval, attribution, and agent memory
 DEFINE INDEX commerce_actions_type ON commerce_actions FIELDS schema_type;
+DEFINE INDEX commerce_actions_schema_url ON commerce_actions FIELDS schema_url;
 DEFINE INDEX commerce_actions_tenant ON commerce_actions FIELDS tenant_id;
 DEFINE INDEX commerce_actions_agent ON commerce_actions FIELDS agent;
 DEFINE INDEX commerce_actions_status ON commerce_actions FIELDS actionStatus;
