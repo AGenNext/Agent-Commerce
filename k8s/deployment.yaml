@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-commerce
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: agent-commerce
+  template:
+    metadata:
+      labels:
+        app: agent-commerce
+    spec:
+      containers:
+        - name: agent-commerce
+          image: ghcr.io/agennext/agent-commerce:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: agent-commerce-secrets
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-commerce
+spec:
+  selector:
+    app: agent-commerce
+  ports:
+    - port: 80
+      targetPort: 8000
