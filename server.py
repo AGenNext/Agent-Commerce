@@ -1,9 +1,12 @@
 # Agent-Commerce FastAPI Server
 # Run: python3 server.py
 
+import json
 import logging
 import os
 import secrets
+import time
+from collections import defaultdict, deque
 from typing import Annotated, Literal
 
 import uvicorn
@@ -18,19 +21,40 @@ from store_manager import StoreManager
 from surrealdb_layer import SurrealDBLayer
 from vendor_agent import VendorAgent
 
-logger = logging.getLogger("agent_commerce")
-logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+
+class JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "timestamp": self.formatTime(record, self.datefmt),
+        }
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
+        return json.dumps(payload)
+
+
+def configure_logging() -> logging.Logger:
+    handler = logging.StreamHandler()
+    handler.setFormatter(JsonFormatter())
+    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"), handlers=[handler], force=True)
+    return logging.getLogger("agent_commerce")
+
+
+logger = configure_logging()
 
 
 class Settings(BaseSettings):
-    """Runtime configuration loaded from environment variables."""
-
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     environment: Literal["development", "test", "production"] = "development"
     api_key: str | None = None
+    admin_api_key: str | None = None
     host: str = "0.0.0.0"
     port: int = 8000
+    rate_limit_requests: int = 120
+    rate_limit_window_seconds: int = 60
     surrealdb_url: str = "mem://"
     surrealdb_user: str | None = None
     surrealdb_password: str | None = None
@@ -39,7 +63,7 @@ class Settings(BaseSettings):
 
     @property
     def auth_required(self) -> bool:
-        return self.environment == "production" or bool(self.api_key)
+        return self.environment == "production" or bool(self.api_key or self.admin_api_key)
 
 
 settings = Settings()
@@ -47,18 +71,17 @@ settings = Settings()
 if settings.environment == "production":
     if not settings.api_key or settings.api_key in {"change-me", "change-me-in-production"}:
         raise RuntimeError("API_KEY must be set to a strong value in production")
+    if not settings.admin_api_key or settings.admin_api_key in {"change-me", "change-me-in-production"}:
+        raise RuntimeError("ADMIN_API_KEY must be set to a strong value in production")
     if settings.surrealdb_url == "mem://":
         raise RuntimeError("SURREALDB_URL must point to a persistent database in production")
 
-app = FastAPI(
-    title="Agent-Commerce API",
-    description="UCP Commerce Agents with SurrealDB",
-    version="1.0.0",
-)
+app = FastAPI(title="Agent-Commerce API", description="UCP Commerce Agents with SurrealDB", version="1.0.0")
 
 db: SurrealDBLayer | None = None
 stores: dict[str, StoreManager] = {}
 vendors: dict[str, VendorAgent] = {}
+_request_log: dict[str, deque[float]] = defaultdict(deque)
 
 
 class ProductCreate(BaseModel):
@@ -91,62 +114,69 @@ class PaymentCreate(BaseModel):
     idempotency_key: str = Field(..., min_length=16, max_length=200)
 
 
+def _extract_api_key(authorization: str | None, x_api_key: str | None) -> str | None:
+    if authorization and authorization.lower().startswith("bearer "):
+        return authorization.split(" ", 1)[1]
+    return x_api_key
+
+
 async def require_api_key(
     authorization: Annotated[str | None, Header()] = None,
     x_api_key: Annotated[str | None, Header()] = None,
-) -> None:
-    """Require either `Authorization: Bearer ...` or `X-API-Key` when configured."""
-
+) -> str:
     if not settings.auth_required:
-        return
+        return "development"
+    supplied_key = _extract_api_key(authorization, x_api_key)
+    valid_user = supplied_key and settings.api_key and secrets.compare_digest(supplied_key, settings.api_key)
+    valid_admin = supplied_key and settings.admin_api_key and secrets.compare_digest(supplied_key, settings.admin_api_key)
+    if valid_admin:
+        return "admin"
+    if valid_user:
+        return "user"
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing or invalid API key")
 
-    supplied_key = x_api_key
-    if authorization and authorization.lower().startswith("bearer "):
-        supplied_key = authorization.split(" ", 1)[1]
 
-    if not supplied_key or not settings.api_key or not secrets.compare_digest(supplied_key, settings.api_key):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing or invalid API key",
-        )
+async def require_admin(role: Annotated[str, Depends(require_api_key)]) -> None:
+    if role != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin API key required")
 
 
 @app.middleware("http")
-async def security_headers(request: Request, call_next):
+async def rate_limit_and_headers(request: Request, call_next):
+    client = request.client.host if request.client else "unknown"
+    now = time.monotonic()
+    bucket = _request_log[client]
+    while bucket and now - bucket[0] > settings.rate_limit_window_seconds:
+        bucket.popleft()
+    if len(bucket) >= settings.rate_limit_requests:
+        return JSONResponse(status_code=status.HTTP_429_TOO_MANY_REQUESTS, content={"detail": "Rate limit exceeded"})
+    bucket.append(now)
+
+    started = time.monotonic()
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
+    logger.info(json.dumps({"method": request.method, "path": request.url.path, "status_code": response.status_code, "duration_ms": round((time.monotonic() - started) * 1000, 2)}))
     return response
 
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
-    logger.exception("Unhandled request error", extra={"path": request.url.path})
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"detail": "Internal server error"},
-    )
+    logger.exception("Unhandled request error")
+    return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content={"detail": "Internal server error"})
 
 
 @app.on_event("startup")
 async def startup() -> None:
     global db
-    db = SurrealDBLayer(
-        url=settings.surrealdb_url,
-        config={
-            "user": settings.surrealdb_user,
-            "password": settings.surrealdb_password,
-            "namespace": settings.surrealdb_namespace,
-            "database": settings.surrealdb_database,
-        },
-    )
+    db = SurrealDBLayer(url=settings.surrealdb_url, config={"user": settings.surrealdb_user, "password": settings.surrealdb_password, "namespace": settings.surrealdb_namespace, "database": settings.surrealdb_database})
     await db.connect()
     await db.use(settings.surrealdb_namespace, settings.surrealdb_database)
     await db.create_table("products")
     await db.create_table("orders")
     await db.create_table("agents")
-    logger.info("SurrealDB connected", extra={"url": settings.surrealdb_url})
+    logger.info("SurrealDB connected")
 
 
 @app.get("/")
@@ -167,6 +197,7 @@ async def ready():
 
 
 protected = Depends(require_api_key)
+admin_only = Depends(require_admin)
 
 
 @app.post("/api/store/products", dependencies=[protected])
@@ -195,19 +226,19 @@ async def dashboard(store_id: str = "default"):
     return await store.get_dashboard()
 
 
-@app.get("/api/admin/info", dependencies=[protected])
+@app.get("/api/admin/info", dependencies=[admin_only])
 async def site_info():
     admin = SiteAdmin()
     return await admin.get_site_info()
 
 
-@app.get("/api/admin/users", dependencies=[protected])
+@app.get("/api/admin/users", dependencies=[admin_only])
 async def users():
     admin = SiteAdmin()
     return await admin.get_users()
 
 
-@app.get("/api/admin/roles", dependencies=[protected])
+@app.get("/api/admin/roles", dependencies=[admin_only])
 async def roles():
     admin = SiteAdmin()
     return await admin.get_roles()
@@ -228,7 +259,7 @@ async def vendor_dashboard(vendor_id: str):
     return await vendors[vendor_id].get_dashboard(vendor_id)
 
 
-@app.get("/api/marketplace/settings", dependencies=[protected])
+@app.get("/api/marketplace/settings", dependencies=[admin_only])
 async def mp_settings():
     mgr = MarketplaceManager()
     return await mgr.get_settings()
@@ -251,12 +282,7 @@ async def create_payment(provider: str, data: PaymentCreate):
     from adapters import PaymentAdapterFactory
 
     adapter = PaymentAdapterFactory.create(provider)
-    return await adapter.create_payment(
-        float(data.amount),
-        data.currency,
-        user_id=data.user_id,
-        idempotency_key=data.idempotency_key,
-    )
+    return await adapter.create_payment(float(data.amount), data.currency, user_id=data.user_id, idempotency_key=data.idempotency_key)
 
 
 @app.get("/api/providers", dependencies=[protected])
@@ -266,7 +292,7 @@ async def providers():
     return {"providers": PaymentAdapterFactory.list_providers()}
 
 
-@app.get("/api/db/health", dependencies=[protected])
+@app.get("/api/db/health", dependencies=[admin_only])
 async def db_health():
     if db:
         return await db.health()
