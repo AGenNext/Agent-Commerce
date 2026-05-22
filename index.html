@@ -8,588 +8,34 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg-deep: #0a0a0f;
-            --bg-surface: #12121a;
-            --bg-elevated: #1a1a25;
-            --accent-primary: #00ff88;
-            --accent-secondary: #00cc6a;
-            --accent-glow: rgba(0, 255, 136, 0.3);
-            --text-primary: #f0f0f5;
-            --text-secondary: #8888a0;
-            --text-muted: #55556a;
-            --border-subtle: #2a2a3a;
-            --gradient-mesh: radial-gradient(ellipse at 20% 20%, rgba(0, 255, 136, 0.08) 0%, transparent 50%),
-                          radial-gradient(ellipse at 80% 80%, rgba(100, 100, 255, 0.06) 0%, transparent 50%),
-                          radial-gradient(ellipse at 50% 50%, rgba(255, 100, 100, 0.04) 0%, transparent 60%);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        html {
-            scroll-behavior: smooth;
-        }
-
-        body {
-            font-family: 'Space Mono', monospace;
-            background: var(--bg-deep);
-            color: var(--text-primary);
-            line-height: 1.6;
-            overflow-x: hidden;
-        }
-
-        /* Background */
-        .bg-mesh {
-            position: fixed;
-            inset: 0;
-            background: var(--gradient-mesh);
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        .noise {
-            position: fixed;
-            inset: 0;
-            background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-            opacity: 0.03;
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        /* Grid */
-        .grid-lines {
-            position: fixed;
-            inset: 0;
-            background-image: 
-                linear-gradient(var(--border-subtle) 1px, transparent 1px),
-                linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px);
-            background-size: 60px 60px;
-            opacity: 0.3;
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        /* Container */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 24px;
-            position: relative;
-            z-index: 2;
-        }
-
-        /* Header */
-        header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 100;
-            padding: 20px 0;
-            background: rgba(10, 10, 15, 0.8);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--border-subtle);
-        }
-
-        header .container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .logo {
-            font-family: 'Syne', sans-serif;
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: var(--text-primary);
-            text-decoration: none;
-            letter-spacing: -0.02em;
-        }
-
-        .logo span {
-            color: var(--accent-primary);
-        }
-
-        nav {
-            display: flex;
-            gap: 32px;
-            align-items: center;
-        }
-
-        nav a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 0.85rem;
-            transition: color 0.2s;
-        }
-
-        nav a:hover {
-            color: var(--accent-primary);
-        }
-
-        .btn {
-            padding: 12px 24px;
-            background: var(--accent-primary);
-            color: var(--bg-deep);
-            font-family: 'Space Mono', monospace;
-            font-size: 0.85rem;
-            font-weight: 700;
-            text-decoration: none;
-            border-radius: 4px;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn:hover {
-            background: var(--accent-secondary);
-            transform: translateY(-2px);
-            box-shadow: 0 0 30px var(--accent-glow);
-        }
-
-        .btn-outline {
-            background: transparent;
-            border: 1px solid var(--border-subtle);
-            color: var(--text-primary);
-        }
-
-        .btn-outline:hover {
-            border-color: var(--accent-primary);
-            color: var(--accent-primary);
-            box-shadow: none;
-        }
-
-        /* Hero */
-        .hero {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            padding: 120px 0 80px;
-        }
-
-        .hero-content {
-            max-width: 800px;
-        }
-
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-subtle);
-            border-radius: 100px;
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            margin-bottom: 32px;
-            animation: fadeInUp 0.6s ease-out;
-        }
-
-        .badge-dot {
-            width: 8px;
-            height: 8px;
-            background: var(--accent-primary);
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        h1 {
-            font-family: 'Syne', sans-serif;
-            font-size: clamp(3rem, 8vw, 5.5rem);
-            font-weight: 800;
-            line-height: 1.05;
-            letter-spacing: -0.03em;
-            margin-bottom: 24px;
-            animation: fadeInUp 0.6s ease-out 0.1s both;
-        }
-
-        h1 .line {
-            display: block;
-        }
-
-        h1 .highlight {
-            color: var(--accent-primary);
-            position: relative;
-        }
-
-        h1 .highlight::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: var(--accent-primary);
-            transform: scaleX(0);
-            transform-origin: left;
-            animation: expandLine 0.6s ease-out 0.8s forwards;
-        }
-
-        .hero p {
-            font-size: 1.1rem;
-            color: var(--text-secondary);
-            max-width: 540px;
-            margin-bottom: 40px;
-            animation: fadeInUp 0.6s ease-out 0.2s both;
-        }
-
-        .hero-buttons {
-            display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
-            animation: fadeInUp 0.6s ease-out 0.3s both;
-        }
-
-        /* Features */
-        .features {
-            padding: 120px 0;
-        }
-
-        .section-header {
-            text-align: center;
-            margin-bottom: 80px;
-        }
-
-        .section-label {
-            font-size: 0.75rem;
-            color: var(--accent-primary);
-            text-transform: uppercase;
-            letter-spacing: 0.2em;
-            margin-bottom: 16px;
-        }
-
-        h2 {
-            font-family: 'Syne', sans-serif;
-            font-size: clamp(2rem, 4vw, 3rem);
-            font-weight: 700;
-            letter-spacing: -0.02em;
-        }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 24px;
-        }
-
-        .feature-card {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-subtle);
-            padding: 32px;
-            border-radius: 8px;
-            transition: all 0.3s;
-        }
-
-        .feature-card:hover {
-            border-color: var(--accent-primary);
-            transform: translateY(-4px);
-        }
-
-        .feature-icon {
-            width: 48px;
-            height: 48px;
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-subtle);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 20px;
-            font-size: 1.5rem;
-        }
-
-        .feature-card h3 {
-            font-family: 'Syne', sans-serif;
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 12px;
-        }
-
-        .feature-card p {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        /* Code Block */
-        .code-section {
-            padding: 80px 0;
-        }
-
-        .code-block {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-subtle);
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .code-header {
-            display: flex;
-            gap: 8px;
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border-subtle);
-        }
-
-        .code-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-        }
-
-        .code-dot.red { background: #ff5f57; }
-        .code-dot.yellow { background: #febc2e; }
-        .code-dot.green { background: #28c840; }
-
-        .code-content {
-            padding: 24px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
-            line-height: 1.8;
-            overflow-x: auto;
-        }
-
-        .code-content .keyword { color: #ff79c6; }
-        .code-content .function { color: #50fa7b; }
-        .code-content .string { color: #f1fa8c; }
-        .code-content .comment { color: #6272a4; }
-        .code-content .number { color: #bd93f9; }
-
-        /* Stats */
-        .stats {
-            padding: 80px 0;
-            border-top: 1px solid var(--border-subtle);
-            border-bottom: 1px solid var(--border-subtle);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 40px;
-            text-align: center;
-        }
-
-        @media (max-width: 768px) {
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        .stat-value {
-            font-family: 'Syne', sans-serif;
-            font-size: 3rem;
-            font-weight: 800;
-            color: var(--accent-primary);
-            margin-bottom: 8px;
-        }
-
-        .stat-label {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-        }
-
-        /* CTA */
-        .cta {
-            padding: 120px 0;
-            text-align: center;
-        }
-
-        .cta h2 {
-            margin-bottom: 24px;
-        }
-
-        .cta p {
-            color: var(--text-secondary);
-            max-width: 500px;
-            margin: 0 auto 40px;
-        }
-
-        /* Footer */
-        footer {
-            padding: 40px 0;
-            border-top: 1px solid var(--border-subtle);
-        }
-
-        footer .container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-
-        footer p {
-            color: var(--text-muted);
-            font-size: 0.8rem;
-        }
-
-        footer a {
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 0.8rem;
-            transition: color 0.2s;
-        }
-
-        footer a:hover {
-            color: var(--accent-primary);
-        }
-
-        /* Animations */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes expandLine {
-            to {
-                transform: scaleX(1);
-            }
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        /* Mobile */
-        @media (max-width: 768px) {
-            nav {
-                display: none;
-            }
-            
-            .hero {
-                padding: 100px 0 60px;
-            }
-            
-            h1 {
-                font-size: 2.5rem;
-            }
-            
-            .hero-buttons {
-                flex-direction: column;
-            }
-            
-            .btn {
-                width: 100%;
-                justify-content: center;
-            }
-        }
+        :root { --bg-deep:#0a0a0f; --bg-surface:#12121a; --bg-elevated:#1a1a25; --accent-primary:#00ff88; --accent-secondary:#00cc6a; --accent-glow:rgba(0,255,136,.3); --text-primary:#f0f0f5; --text-secondary:#8888a0; --text-muted:#55556a; --border-subtle:#2a2a3a; --danger:#ff6b6b; --gradient-mesh:radial-gradient(ellipse at 20% 20%,rgba(0,255,136,.08) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(100,100,255,.06) 0%,transparent 50%),radial-gradient(ellipse at 50% 50%,rgba(255,100,100,.04) 0%,transparent 60%); }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html { scroll-behavior:smooth; }
+        body { font-family:'Space Mono',monospace; background:var(--bg-deep); color:var(--text-primary); line-height:1.6; overflow-x:hidden; }
+        .bg-mesh,.noise,.grid-lines{position:fixed;inset:0;pointer-events:none}.bg-mesh{background:var(--gradient-mesh);z-index:0}.noise{background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");opacity:.03;z-index:1}.grid-lines{background-image:linear-gradient(var(--border-subtle) 1px,transparent 1px),linear-gradient(90deg,var(--border-subtle) 1px,transparent 1px);background-size:60px 60px;opacity:.3;z-index:0}
+        .container { max-width:1200px; margin:0 auto; padding:0 24px; position:relative; z-index:2; }
+        header{position:fixed;top:0;left:0;right:0;z-index:100;padding:20px 0;background:rgba(10,10,15,.8);backdrop-filter:blur(20px);border-bottom:1px solid var(--border-subtle)}header .container{display:flex;justify-content:space-between;align-items:center}.logo{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:var(--text-primary);text-decoration:none}.logo span{color:var(--accent-primary)}nav{display:flex;gap:32px;align-items:center}nav a{color:var(--text-secondary);text-decoration:none;font-size:.85rem;transition:color .2s}nav a:hover{color:var(--accent-primary)}
+        .btn{padding:12px 24px;background:var(--accent-primary);color:var(--bg-deep);font-family:'Space Mono',monospace;font-size:.85rem;font-weight:700;text-decoration:none;border-radius:4px;transition:all .2s;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;cursor:pointer}.btn:hover{background:var(--accent-secondary);transform:translateY(-2px);box-shadow:0 0 30px var(--accent-glow)}.btn-outline{background:transparent;border:1px solid var(--border-subtle);color:var(--text-primary)}.btn-outline:hover{border-color:var(--accent-primary);color:var(--accent-primary);box-shadow:none}.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+        .hero{min-height:100vh;display:flex;align-items:center;padding:120px 0 80px}.hero-content{max-width:800px}.badge{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:100px;font-size:.75rem;color:var(--text-secondary);margin-bottom:32px;animation:fadeInUp .6s ease-out}.badge-dot{width:8px;height:8px;background:var(--accent-primary);border-radius:50%;animation:pulse 2s infinite}h1{font-family:'Syne',sans-serif;font-size:clamp(3rem,8vw,5.5rem);font-weight:800;line-height:1.05;letter-spacing:-.03em;margin-bottom:24px;animation:fadeInUp .6s ease-out .1s both}h1 .line{display:block}h1 .highlight{color:var(--accent-primary);position:relative}.hero p{font-size:1.1rem;color:var(--text-secondary);max-width:540px;margin-bottom:40px;animation:fadeInUp .6s ease-out .2s both}.hero-buttons{display:flex;gap:16px;flex-wrap:wrap;animation:fadeInUp .6s ease-out .3s both}
+        .features,.onboarding{padding:120px 0}.section-header{text-align:center;margin-bottom:80px}.section-label{font-size:.75rem;color:var(--accent-primary);text-transform:uppercase;letter-spacing:.2em;margin-bottom:16px}h2{font-family:'Syne',sans-serif;font-size:clamp(2rem,4vw,3rem);font-weight:700;letter-spacing:-.02em}.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}.feature-card{background:var(--bg-surface);border:1px solid var(--border-subtle);padding:32px;border-radius:8px;transition:all .3s}.feature-card:hover{border-color:var(--accent-primary);transform:translateY(-4px)}.feature-icon{width:48px;height:48px;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;font-size:1.5rem}.feature-card h3{font-family:'Syne',sans-serif;font-size:1.25rem;font-weight:600;margin-bottom:12px}.feature-card p{color:var(--text-secondary);font-size:.9rem}
+        .onboarding-shell{display:grid;grid-template-columns:320px 1fr;gap:24px;align-items:start}.steps-panel,.form-panel,.summary-panel{background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:12px;padding:24px}.step-item{display:flex;gap:14px;padding:16px;border:1px solid var(--border-subtle);border-radius:8px;margin-bottom:12px;color:var(--text-secondary)}.step-item.active{border-color:var(--accent-primary);color:var(--text-primary);box-shadow:0 0 24px rgba(0,255,136,.08)}.step-index{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--bg-elevated);color:var(--accent-primary);font-weight:700}.step-item.done .step-index{background:var(--accent-primary);color:var(--bg-deep)}.step-title{font-weight:700;color:var(--text-primary);font-size:.9rem}.step-copy{font-size:.78rem;color:var(--text-secondary)}.form-step{display:none}.form-step.active{display:block}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.field{display:flex;flex-direction:column;gap:8px}.field.full{grid-column:1/-1}label{font-size:.8rem;color:var(--text-secondary)}input,select,textarea{width:100%;padding:14px 16px;background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:6px;color:var(--text-primary);font-family:'Space Mono',monospace}textarea{min-height:110px;resize:vertical}input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent-primary);box-shadow:0 0 0 3px rgba(0,255,136,.08)}.error{color:var(--danger);font-size:.78rem;min-height:18px}.choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.choice{padding:14px;border:1px solid var(--border-subtle);border-radius:8px;background:var(--bg-elevated);cursor:pointer;color:var(--text-secondary)}.choice input{width:auto;margin-right:8px}.choice:has(input:checked){border-color:var(--accent-primary);color:var(--text-primary)}.form-actions{display:flex;justify-content:space-between;gap:12px;margin-top:28px}.summary-panel{margin-top:24px}.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:16px}.summary-card{background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:8px;padding:14px}.summary-label{font-size:.72rem;color:var(--text-muted);text-transform:uppercase}.summary-value{font-size:.9rem;color:var(--text-primary);word-break:break-word}.launch-note{margin-top:18px;color:var(--text-secondary);font-size:.9rem}.success-banner{display:none;margin-top:18px;padding:16px;border:1px solid var(--accent-primary);background:rgba(0,255,136,.08);border-radius:8px;color:var(--text-primary)}.success-banner.show{display:block}
+        .code-section{padding:80px 0}.code-block{background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px;overflow:hidden}.code-header{display:flex;gap:8px;padding:16px 20px;border-bottom:1px solid var(--border-subtle)}.code-dot{width:12px;height:12px;border-radius:50%}.red{background:#ff5f57}.yellow{background:#febc2e}.green{background:#28c840}.code-content{padding:24px;font-family:'JetBrains Mono',monospace;font-size:.85rem;line-height:1.8;overflow-x:auto}.keyword{color:#ff79c6}.function{color:#50fa7b}.string{color:#f1fa8c}.comment{color:#6272a4}.number{color:#bd93f9}
+        .stats{padding:80px 0;border-top:1px solid var(--border-subtle);border-bottom:1px solid var(--border-subtle)}.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:40px;text-align:center}.stat-value{font-family:'Syne',sans-serif;font-size:3rem;font-weight:800;color:var(--accent-primary);margin-bottom:8px}.stat-label{font-size:.85rem;color:var(--text-secondary)}.cta{padding:120px 0;text-align:center}.cta h2{margin-bottom:24px}.cta p{color:var(--text-secondary);max-width:500px;margin:0 auto 40px}footer{padding:40px 0;border-top:1px solid var(--border-subtle)}footer .container{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px}footer p,footer a{color:var(--text-muted);font-size:.8rem}footer a{text-decoration:none}
+        @keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+        @media(max-width:900px){.onboarding-shell{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}.stats-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:768px){nav{display:none}.hero{padding:100px 0 60px}h1{font-size:2.5rem}.hero-buttons,.form-actions{flex-direction:column}.btn{width:100%}}
     </style>
 </head>
 <body>
-    <div class="bg-mesh"></div>
-    <div class="noise"></div>
-    <div class="grid-lines"></div>
+    <div class="bg-mesh"></div><div class="noise"></div><div class="grid-lines"></div>
+    <header><div class="container"><a href="#" class="logo">Agent<span>-</span>Commerce</a><nav><a href="#features">Features</a><a href="#onboarding">Onboarding</a><a href="#code">Code</a><a href="#stats">Stats</a><a href="https://github.com/AGenNext/Agent-Commerce" class="btn btn-outline">GitHub</a><a href="#onboarding" class="btn">Get Started</a></nav></div></header>
 
-    <!-- Header -->
-    <header>
-        <div class="container">
-            <a href="#" class="logo">Agent<span>-</span>Commerce</a>
-            <nav>
-                <a href="#features">Features</a>
-                <a href="#code">Code</a>
-                <a href="#stats">Stats</a>
-                <a href="https://github.com/AGenNext/Agent-Commerce" class="btn btn-outline">GitHub</a>
-                <a href="/" class="btn">Get Started</a>
-            </nav>
-        </div>
-    </header>
+    <section class="hero"><div class="container"><div class="hero-content"><div class="badge"><span class="badge-dot"></span>AI-Powered E-Commerce</div><h1><span class="line">Commerce Agents</span><span class="line">Built for</span><span class="line highlight">AutonomousTrade</span></h1><p>Universal Commerce Protocol (UCP) agents with A2A transport, SurrealDB backend, and 8 payment protocols. Build the next generation of agentic commerce applications.</p><div class="hero-buttons"><a href="#onboarding" class="btn">Start Onboarding</a><a href="#code" class="btn btn-outline">View Documentation</a></div></div></div></section>
 
-    <!-- Hero -->
-    <section class="hero">
-        <div class="container">
-            <div class="hero-content">
-                <div class="badge">
-                    <span class="badge-dot"></span>
-                    AI-Powered E-Commerce
-                </div>
-                <h1>
-                    <span class="line">Commerce Agents</span>
-                    <span class="line">Built for</span>
-                    <span class="line highlight">AutonomousTrade</span>
-                </h1>
-                <p>
-                    Universal Commerce Protocol (UCP) agents with A2A transport, 
-                    SurrealDB backend, and 8 payment protocols. Build the next generation 
-                    of agentic commerce applications.
-                </p>
-                <div class="hero-buttons">
-                    <a href="https://github.com/AGenNext/Agent-Commerce" class="btn">
-                        Deploy Now
-                    </a>
-                    <a href="#code" class="btn btn-outline">
-                        View Documentation
-                    </a>
-                </div>
-            </div>
-        </div>
-    </section>
+    <section class="features" id="features"><div class="container"><div class="section-header"><div class="section-label">Capabilities</div><h2>Everything You Need to Build</h2></div><div class="features-grid"><div class="feature-card"><div class="feature-icon">🤖</div><h3>UCP Commerce Agent</h3><p>AI agent with A2A Protocol transport, SurrealDB backend, and 40+ commerce skills.</p></div><div class="feature-card"><div class="feature-icon">🏪</div><h3>Store Manager</h3><p>WooCommerce, Shopify, and Mercur integrations for multi-platform sync.</p></div><div class="feature-card"><div class="feature-icon">💳</div><h3>8 Payment Protocols</h3><p>AP2, x402, Stripe, PayPal, Mastercard, Open Banking, MPP, Shopify.</p></div><div class="feature-card"><div class="feature-icon">📊</div><h3>Marketplace Manager</h3><p>Vendors, commissions, payouts, disputes, Mercur Connect, Headless API.</p></div><div class="feature-card"><div class="feature-icon">🔐</div><h3>Site Admin</h3><p>Users, roles, permissions, API keys, webhooks, audit logs.</p></div><div class="feature-card"><div class="feature-icon">🗄️</div><h3>SurrealDB Layer</h3><p>Centralized data layer with CRUD, relations, search, and live queries.</p></div></div></div></section>
 
-    <!-- Features -->
-    <section class="features" id="features">
-        <div class="container">
-            <div class="section-header">
-                <div class="section-label">Capabilities</div>
-                <h2>Everything You Need to Build</h2>
-            </div>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">🤖</div>
-                    <h3>UCP Commerce Agent</h3>
-                    <p>AI agent with A2A Protocol transport, SurrealDB backend, and 40+ commerce skills.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🏪</div>
-                    <h3>Store Manager</h3>
-                    <p>WooCommerce, Shopify, and Mercur integrations for multi-platform sync.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">💳</div>
-                    <h3>8 Payment Protocols</h3>
-                    <p>AP2, x402, Stripe, PayPal, Mastercard, Open Banking, MPP, Shopify.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📊</div>
-                    <h3>Marketplace Manager</h3>
-                    <p>Vendors, commissions, payouts, disputes, Mercur Connect, Headless API.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔐</div>
-                    <h3>Site Admin</h3>
-                    <p>Users, roles, permissions, API keys, webhooks, audit logs.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🗄️</div>
-                    <h3>SurrealDB Layer</h3>
-                    <p>Centralized data layer with CRUD, relations, search, and live queries.</p>
-                </div>
-            </div>
-        </div>
-    </section>
+    <section class="onboarding" id="onboarding"><div class="container"><div class="section-header"><div class="section-label">Merchant Onboarding</div><h2>Launch a Commerce Agent in Minutes</h2></div><div class="onboarding-shell"><aside class="steps-panel" id="stepsPanel"></aside><div><form class="form-panel" id="onboardingForm" novalidate><div class="form-step active" data-step="0"><h3>Store profile</h3><p class="launch-note">Tell the agent what kind of merchant it will operate for.</p><div class="form-grid"><div class="field"><label for="storeName">Store name</label><input id="storeName" name="storeName" placeholder="Acme AI Store" required><div class="error"></div></div><div class="field"><label for="ownerEmail">Owner email</label><input id="ownerEmail" name="ownerEmail" type="email" placeholder="ops@example.com" required><div class="error"></div></div><div class="field"><label for="storeType">Store type</label><select id="storeType" name="storeType" required><option value="">Select one</option><option>D2C brand</option><option>Marketplace</option><option>Digital goods</option><option>B2B commerce</option><option>Services</option></select><div class="error"></div></div><div class="field"><label for="currency">Default currency</label><select id="currency" name="currency" required><option>USD</option><option>EUR</option><option>GBP</option><option>INR</option><option>JPY</option></select><div class="error"></div></div><div class="field full"><label for="description">What does the store sell?</label><textarea id="description" name="description" placeholder="Describe catalog, customers, and buying workflow" required></textarea><div class="error"></div></div></div></div><div class="form-step" data-step="1"><h3>Commerce channels</h3><p class="launch-note">Choose where the agent should sync catalog, orders, and checkout.</p><div class="choice-grid"><label class="choice"><input type="checkbox" name="channels" value="Shopify">Shopify</label><label class="choice"><input type="checkbox" name="channels" value="WooCommerce">WooCommerce</label><label class="choice"><input type="checkbox" name="channels" value="Mercur">Mercur</label><label class="choice"><input type="checkbox" name="channels" value="Headless API">Headless API</label></div><div class="error" id="channelsError"></div><div class="form-grid" style="margin-top:18px"><div class="field"><label for="catalogSize">Catalog size</label><select id="catalogSize" name="catalogSize" required><option value="">Select one</option><option>1-50 SKUs</option><option>51-500 SKUs</option><option>501-5,000 SKUs</option><option>5,000+ SKUs</option></select><div class="error"></div></div><div class="field"><label for="orderVolume">Monthly orders</label><select id="orderVolume" name="orderVolume" required><option value="">Select one</option><option>0-100</option><option>101-1,000</option><option>1,001-10,000</option><option>10,000+</option></select><div class="error"></div></div></div></div><div class="form-step" data-step="2"><h3>Payments and risk</h3><p class="launch-note">Select payment providers and risk posture for autonomous checkout.</p><div class="choice-grid"><label class="choice"><input type="checkbox" name="payments" value="Stripe">Stripe</label><label class="choice"><input type="checkbox" name="payments" value="PayPal">PayPal</label><label class="choice"><input type="checkbox" name="payments" value="AP2">AP2</label><label class="choice"><input type="checkbox" name="payments" value="x402">x402</label><label class="choice"><input type="checkbox" name="payments" value="Open Banking">Open Banking</label><label class="choice"><input type="checkbox" name="payments" value="Shopify Checkout">Shopify Checkout</label></div><div class="error" id="paymentsError"></div><div class="form-grid" style="margin-top:18px"><div class="field"><label for="riskMode">Risk mode</label><select id="riskMode" name="riskMode" required><option value="">Select one</option><option>Manual approval above threshold</option><option>Agent can approve low-risk orders</option><option>Strict admin approval</option></select><div class="error"></div></div><div class="field"><label for="approvalLimit">Autonomous approval limit</label><input id="approvalLimit" name="approvalLimit" type="number" min="0" placeholder="250" required><div class="error"></div></div></div></div><div class="form-step" data-step="3"><h3>Launch checklist</h3><p class="launch-note">Confirm operational settings before creating the launch plan.</p><div class="choice-grid"><label class="choice"><input type="checkbox" name="checks" value="API keys configured">API keys configured</label><label class="choice"><input type="checkbox" name="checks" value="Webhook URLs ready">Webhook URLs ready</label><label class="choice"><input type="checkbox" name="checks" value="Catalog verified">Catalog verified</label><label class="choice"><input type="checkbox" name="checks" value="Support owner assigned">Support owner assigned</label></div><div class="error" id="checksError"></div><div class="field full" style="margin-top:18px"><label for="launchGoal">Launch goal</label><textarea id="launchGoal" name="launchGoal" placeholder="Example: launch private beta for 100 customers with Stripe + Shopify"></textarea><div class="error"></div></div></div><div class="form-actions"><button type="button" class="btn btn-outline" id="prevBtn">Back</button><button type="button" class="btn" id="nextBtn">Continue</button></div><div class="success-banner" id="successBanner">Onboarding plan created locally. Connect this form to `/api/store/products`, `/api/payments/{provider}`, and admin endpoints to persist it.</div></form><section class="summary-panel"><h3>Launch summary</h3><div class="summary-grid" id="summaryGrid"></div></section></div></div></div></section>
 
-    <!-- Code -->
-    <section class="code-section" id="code">
-        <div class="container">
-            <div class="section-header">
-                <div class="section-label">Quick Start</div>
-                <h2>Initialize an Agent</h2>
-            </div>
-            <div class="code-block">
-                <div class="code-header">
-                    <span class="code-dot red"></span>
-                    <span class="code-dot yellow"></span>
-                    <span class="code-dot green"></span>
-                </div>
-                <div class="code-content">
-<span class="comment"># Install dependencies</span>
+    <section class="code-section" id="code"><div class="container"><div class="section-header"><div class="section-label">Quick Start</div><h2>Initialize an Agent</h2></div><div class="code-block"><div class="code-header"><span class="code-dot red"></span><span class="code-dot yellow"></span><span class="code-dot green"></span></div><div class="code-content"><span class="comment"># Install dependencies</span>
 pip install surrealdb fastapi uvicorn
 
 <span class="comment"># Create your commerce agent</span>
@@ -598,69 +44,99 @@ pip install surrealdb fastapi uvicorn
 agent = UCPCommerceAgent()
 card = agent.get_agent_card()
 
-<span class="comment"># Create a product</span>
-product = <span class="keyword">await</span> agent.create_product({
-    <span class="string">"title"</span>: <span class="string">"AI Widget"</span>,
-    <span class="string">"price"</span>: <span class="number">29.99</span>
-})
-
 <span class="comment"># Process payment</span>
 <span class="keyword">from</span> adapters <span class="keyword">import</span> PaymentAdapterFactory
 
 adapter = PaymentAdapterFactory.<span class="function">create</span>(<span class="string">"stripe"</span>)
-payment = <span class="keyword">await</span> adapter.create_payment(
-    <span class="number">29.99</span>, <span class="string">"USD"</span>, user_id=<span class="string">"user_123"</span>
-)
+payment = <span class="keyword">await</span> adapter.create_payment(<span class="number">29.99</span>, <span class="string">"USD"</span>, user_id=<span class="string">"user_123"</span>)</div></div></div></section>
 
-<span class="comment"># Payment: pi_abc123...</span>
-                </div>
-            </div>
-        </div>
-    </section>
+    <section class="stats" id="stats"><div class="container"><div class="stats-grid"><div><div class="stat-value">8</div><div class="stat-label">Payment Protocols</div></div><div><div class="stat-value">7+</div><div class="stat-label">AI Agents</div></div><div><div class="stat-value">57</div><div class="stat-label">Tests Passing</div></div><div><div class="stat-value">7K+</div><div class="stat-label">Lines of Code</div></div></div></div></section>
+    <section class="cta"><div class="container"><h2>Start Building Today</h2><p>Deploy autonomous commerce agents with guided merchant onboarding and comprehensive payment protocol support.</p><a href="#onboarding" class="btn">Open Onboarding</a></div></section>
+    <footer><div class="container"><p>Agent-Commerce © 2026 — Built with UCP + SurrealDB</p><div><a href="https://github.com/AGenNext/Agent-Commerce">GitHub</a></div></div></footer>
 
-    <!-- Stats -->
-    <section class="stats" id="stats">
-        <div class="container">
-            <div class="stats-grid">
-                <div>
-                    <div class="stat-value">8</div>
-                    <div class="stat-label">Payment Protocols</div>
-                </div>
-                <div>
-                    <div class="stat-value">7+</div>
-                    <div class="stat-label">AI Agents</div>
-                </div>
-                <div>
-                    <div class="stat-value">57</div>
-                    <div class="stat-label">Tests Passing</div>
-                </div>
-                <div>
-                    <div class="stat-value">7K+</div>
-                    <div class="stat-label">Lines of Code</div>
-                </div>
-            </div>
-        </div>
-    </section>
+    <script>
+        const steps = [
+            { title: 'Store', copy: 'Profile and catalog intent' },
+            { title: 'Channels', copy: 'Commerce platform setup' },
+            { title: 'Payments', copy: 'Provider and risk controls' },
+            { title: 'Launch', copy: 'Operational readiness' }
+        ];
+        let currentStep = 0;
+        const form = document.getElementById('onboardingForm');
+        const stepEls = [...document.querySelectorAll('.form-step')];
+        const stepsPanel = document.getElementById('stepsPanel');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const summaryGrid = document.getElementById('summaryGrid');
+        const successBanner = document.getElementById('successBanner');
 
-    <!-- CTA -->
-    <section class="cta">
-        <div class="container">
-            <h2>Start Building Today</h2>
-            <p>Deploy autonomous commerce agents with the most comprehensive payment protocol support available.</p>
-            <a href="https://github.com/AGenNext/Agent-Commerce" class="btn">
-                View on GitHub
-            </a>
-        </div>
-    </section>
+        function selectedValues(name) {
+            return [...form.querySelectorAll(`input[name="${name}"]:checked`)].map(input => input.value);
+        }
 
-    <!-- Footer -->
-    <footer>
-        <div class="container">
-            <p>Agent-Commerce © 2026 — Built with UCP + SurrealDB</p>
-            <div>
-                <a href="https://github.com/AGenNext/Agent-Commerce">GitHub</a>
-            </div>
-        </div>
-    </footer>
+        function renderSteps() {
+            stepsPanel.innerHTML = steps.map((step, index) => `
+                <div class="step-item ${index === currentStep ? 'active' : ''} ${index < currentStep ? 'done' : ''}">
+                    <div class="step-index">${index < currentStep ? '✓' : index + 1}</div>
+                    <div><div class="step-title">${step.title}</div><div class="step-copy">${step.copy}</div></div>
+                </div>
+            `).join('');
+        }
+
+        function renderSummary() {
+            const data = new FormData(form);
+            const summary = [
+                ['Store', data.get('storeName') || 'Not set'],
+                ['Email', data.get('ownerEmail') || 'Not set'],
+                ['Type', data.get('storeType') || 'Not set'],
+                ['Currency', data.get('currency') || 'USD'],
+                ['Channels', selectedValues('channels').join(', ') || 'Not selected'],
+                ['Catalog', data.get('catalogSize') || 'Not set'],
+                ['Payments', selectedValues('payments').join(', ') || 'Not selected'],
+                ['Risk', data.get('riskMode') || 'Not set'],
+                ['Approval limit', data.get('approvalLimit') ? `${data.get('currency') || 'USD'} ${data.get('approvalLimit')}` : 'Not set'],
+                ['Readiness', selectedValues('checks').join(', ') || 'Not confirmed']
+            ];
+            summaryGrid.innerHTML = summary.map(([label, value]) => `<div class="summary-card"><div class="summary-label">${label}</div><div class="summary-value">${value}</div></div>`).join('');
+        }
+
+        function setError(field, message) {
+            const error = field.parentElement.querySelector('.error');
+            if (error) error.textContent = message;
+        }
+
+        function validateStep() {
+            let valid = true;
+            const active = stepEls[currentStep];
+            active.querySelectorAll('input[required], select[required], textarea[required]').forEach(field => {
+                const message = field.validity.valid ? '' : 'Required';
+                setError(field, message);
+                if (message) valid = false;
+            });
+            if (currentStep === 1 && selectedValues('channels').length === 0) { document.getElementById('channelsError').textContent = 'Select at least one channel'; valid = false; } else if (document.getElementById('channelsError')) document.getElementById('channelsError').textContent = '';
+            if (currentStep === 2 && selectedValues('payments').length === 0) { document.getElementById('paymentsError').textContent = 'Select at least one payment provider'; valid = false; } else if (document.getElementById('paymentsError')) document.getElementById('paymentsError').textContent = '';
+            if (currentStep === 3 && selectedValues('checks').length < 2) { document.getElementById('checksError').textContent = 'Confirm at least two readiness checks'; valid = false; } else if (document.getElementById('checksError')) document.getElementById('checksError').textContent = '';
+            return valid;
+        }
+
+        function showStep(index) {
+            currentStep = index;
+            stepEls.forEach((el, i) => el.classList.toggle('active', i === currentStep));
+            prevBtn.disabled = currentStep === 0;
+            nextBtn.textContent = currentStep === steps.length - 1 ? 'Create Launch Plan' : 'Continue';
+            renderSteps();
+            renderSummary();
+        }
+
+        prevBtn.addEventListener('click', () => showStep(Math.max(0, currentStep - 1)));
+        nextBtn.addEventListener('click', () => {
+            if (!validateStep()) return;
+            if (currentStep < steps.length - 1) showStep(currentStep + 1);
+            else { successBanner.classList.add('show'); renderSummary(); }
+        });
+        form.addEventListener('input', renderSummary);
+        form.addEventListener('change', renderSummary);
+        showStep(0);
+    </script>
 </body>
 </html>
