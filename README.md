@@ -9,85 +9,90 @@ AI-powered e-commerce agents built with Universal Commerce Protocol (UCP), Agent
 ## Features
 
 - **UCP Commerce Agent** - AI agent with 40+ commerce skills
-- **Store Manager** - WooCommerce, Shopify, Mercur integrations  
+- **Store Manager** - WooCommerce, Shopify, Mercur integrations
 - **Payment Protocols** - 8 providers: AP2, x402, Stripe, PayPal, Mastercard, Open Banking, MPP, Shopify
 - **Marketplace Manager** - Vendors, commissions, payouts, disputes
 - **Site Admin** - Users, roles, API keys, webhooks
 - **SurrealDB Layer** - Centralized data with CRUD, relations, search
-
-## Quick Start
-
-```python
-# Install
-pip install surrealdb aiohttp fastapi uvicorn
-
-# Create product
-from store_manager import StoreManager
-
-store = StoreManager(config={})
-product = await store.create_product({
-    "title": "AI Widget",
-    "price": 29.99
-})
-print(f"Created: {product['id']}")
-
-# Process payment
-from adapters import PaymentAdapterFactory
-
-adapter = PaymentAdapterFactory.create("stripe")
-payment = await adapter.create_payment(29.99, "USD")
-print(f"Payment: {payment['id']}")
-```
+- **FastAPI Runtime** - JWT auth, rate limiting, readiness checks
 
 ## Installation
 
 ```bash
-# Clone
 git clone https://github.com/AGenNext/Agent-Commerce.git
 cd Agent-Commerce
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Run tests
-python test_e2e.py
 ```
+
+## Local Development
+
+```bash
+cp .env.example .env
+docker compose up -d
+```
+
+Endpoints:
+
+- API: http://localhost:8080
+- Health: http://localhost:8080/health
+- Readiness: http://localhost:8080/ready
+- Docs: http://localhost:8080/docs
+
+## Authentication
+
+Supported authentication methods:
+
+- API keys
+- Admin API keys
+- JWT bearer tokens
+- Refresh tokens
+
+Example request:
+
+```bash
+curl -H "X-API-Key: local-dev-api-key" http://localhost:8080/api/providers
+```
+
+## Production Deployment
+
+Required environment variables:
+
+```env
+ENVIRONMENT=production
+API_KEY=<high-entropy-secret>
+ADMIN_API_KEY=<high-entropy-secret>
+JWT_SECRET=<high-entropy-secret>
+SURREALDB_URL=<persistent-db-url>
+SURREALDB_USER=<db-user>
+SURREALDB_PASSWORD=<db-password>
+```
+
+Production recommendations:
+
+- Use a persistent external SurrealDB deployment
+- Put the API behind TLS/reverse proxy infrastructure
+- Replace in-memory rate limiting with Redis or gateway limits
+- Persist refresh tokens outside process memory
+- Add centralized observability and tracing
+- Rotate secrets regularly
+- Use orchestration such as Kubernetes or ECS
 
 ## Docker
 
 ```bash
-# Build
 docker build -t agent-commerce .
-
-# Run
-docker run -p 8000:8000 agent-commerce
+docker run -p 8000:8000 --env-file .env agent-commerce
 ```
 
-## API Server
+## CI/CD
 
-```bash
-python server.py
-# Visit http://localhost:8000
-```
+GitHub Actions validates:
 
-## SDK
-
-### Python SDK
-
-```python
-from agent_commerce import Client
-
-async with Client(api_key="sk_...") as client:
-    product = await client.products.create({"title": "Widget", "price": 29.99})
-    order = await client.orders.create({"customer_id": "cust_1", "line_items": []})
-    payment = await client.payments.create("stripe", 29.99, "USD")
-```
-
-### JavaScript SDK
-
-```javascript
-// Coming soon
-```
+- Ruff linting
+- MyPy type checks
+- Pytest execution
+- Health endpoint smoke tests
+- Docker image build
 
 ## Payment Providers
 
@@ -102,70 +107,9 @@ async with Client(api_key="sk_...") as client:
 | `mpp` | Stripe/Tempo Machine Payments |
 | `shopify` | Shopify Catalog/Checkout |
 
-## Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/store/products` | Create product |
-| GET | `/api/store/products` | List products |
-| POST | `/api/store/orders` | Create order |
-| GET | `/api/store/dashboard` | Get dashboard |
-| POST | `/api/payments/{provider}` | Create payment |
-| GET | `/api/providers` | List providers |
-| GET | `/api/admin/users` | List users |
-| GET | `/api/admin/roles` | List roles |
-
-## Test Results
-
-```
-Tests: 57/57 PASSED (100%)
-
-SurrealDB Layer   10/10
-Store Manager    10/10
-Platform Factory  3/3
-Site Admin       10/10
-Payment Adapters 24/24
-```
-
-## Project Structure
-
-```
-/workspace/project/
-├── ucp_agent.py           # UCP Commerce Agent
-├── store_manager.py       # Store Manager
-├── site_admin.py        # Site Admin
-├── vendor_agent.py      # Vendor Agent
-├── marketplace_manager.py # Marketplace
-├── surrealdb_layer.py   # SurrealDB layer
-├── server.py            # FastAPI server
-├── index.html          # Landing page
-├── Dockerfile          # Container
-├── adapters/           # 8 payment adapters
-│   ├── ap2_adapter.py
-│   ├── x402_adapter.py
-│   ├── stripe_adapter.py
-│   └── ...
-└── sdk/
-    ├── python/          # Python SDK
-    └── js/            # JavaScript SDK (coming)
-```
-
-## Source URLs
-
-- [UCP Protocol](https://ucp.dev)
-- [A2A Protocol](https://a2a-protocol.org)
-- [SurrealDB](https://surrealdb.com)
-- [Stripe Agentic Commerce](https://stripe.com/in/guides/agentic-commerce)
-- [Mercur](https://www.mercurjs.com)
-- [Stacker](https://stackerbuild.io)
-
 ## License
 
 Apache 2.0 - See LICENSE file
-
-## Contributing
-
-PRs welcome! Please read the contributing guidelines first.
 
 ---
 
