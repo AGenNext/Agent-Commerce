@@ -1,27 +1,24 @@
 # Docker Compose - Agent-Commerce
-# For development and testing
+# Development and integration testing stack
 
 version: '3.8'
 
 services:
-  # SurrealDB Database
   surrealdb:
     image: surrealdb/surrealdb:latest
     container_name: agent-commerce-db
     ports:
       - "8000:8000"
-      - "8001:8001"
     environment:
       - SURREALDB_USER=agent
-      - SURREALDB_PASS=commerce
+      - SURREALDB_PASSWORD=commerce
       - SURREALDB_DATABASE=commerce
     volumes:
       - surrealdb_data:/var/lib/surrealdb
     networks:
       - agent-network
-    command: start --user-agent --bind 0.0.0.0:8000 --bind 0.0.0.0:8001 --auth
+    command: start --bind 0.0.0.0:8000 memory --auth
 
-  # Agent Commerce API
   agent-api:
     build:
       context: .
@@ -30,10 +27,15 @@ services:
     ports:
       - "8080:8000"
     environment:
-      - SURREALDB_URL=ws://surrealdb:8000
+      - ENVIRONMENT=development
+      - SURREALDB_URL=ws://surrealdb:8000/rpc
       - SURREALDB_USER=agent
-      - SURREALDB_PASS=commerce
-      - SURREALDB_DATABASE=commerce
+      - SURREALDB_PASSWORD=commerce
+      - SURREALDB_NAMESPACE=ucp
+      - SURREALDB_DATABASE=ecommerce
+      - API_KEY=local-dev-api-key
+      - ADMIN_API_KEY=local-dev-admin-key
+      - JWT_SECRET=local-dev-jwt-secret
     depends_on:
       - surrealdb
     networks:
@@ -41,7 +43,6 @@ services:
     volumes:
       - ./:/workspace/agent
 
-  # Agent Commerce Tests
   agent-test:
     build:
       context: .
@@ -49,6 +50,7 @@ services:
     container_name: agent-commerce-test
     environment:
       - SURREALDB_URL=mem://
+      - ENVIRONMENT=test
     depends_on:
       - agent-api
     networks:
@@ -66,6 +68,8 @@ networks:
     driver: bridge
 
 # Usage:
-# docker-compose up -d surrealdb
-# docker-compose up agent-api
-# docker-compose run --rm agent-test
+# docker compose up -d
+# API: http://localhost:8080
+# Health: http://localhost:8080/health
+# Readiness: http://localhost:8080/ready
+# Tests: docker compose --profile test run --rm agent-test
