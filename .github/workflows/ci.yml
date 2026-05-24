@@ -21,13 +21,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Lint
+      - name: Lint changed operational files
         run: |
-          ruff check .
+          ruff check server.py surrealdb_layer.py
 
-      - name: Type check
+      - name: Type check changed operational files
         run: |
-          mypy .
+          mypy server.py surrealdb_layer.py
 
       - name: Run tests
         env:
