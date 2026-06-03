@@ -8,6 +8,8 @@ Apply migrations in this order because later files depend on metamodel tables an
 4. `commerce_schema_org.surql`
 5. `commerce_actions_schema_org.surql`
 6. `invoice_metamodel.surql`
+7. `settlements_payouts.surql`
+8. `digital_identity_ecosystem.surql`
 
 Use:
 
