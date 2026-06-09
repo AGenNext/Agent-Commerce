@@ -45,7 +45,11 @@ DEFINE FIELD schema_context ON payout_batches TYPE string DEFAULT 'https://schem
 DEFINE FIELD schema_type ON payout_batches TYPE string DEFAULT 'PayAction';
 DEFINE FIELD schema_url ON payout_batches TYPE string VALUE 'https://schema.org/PayAction';
 DEFINE FIELD tenant_id ON payout_batches TYPE string;
-DEFINE FIELD merchant ON payout_batches TYPE record<merchants>;
+-- Beneficiary is polymorphic: a marketplace `merchants` record for sale
+-- settlements, or a `users` record for referral-commission payouts.
+DEFINE FIELD merchant ON payout_batches TYPE option<record<merchants>>;
+DEFINE FIELD beneficiary ON payout_batches TYPE option<record>;
+DEFINE FIELD beneficiary_kind ON payout_batches TYPE string DEFAULT 'merchant';
 DEFINE FIELD status ON payout_batches TYPE string DEFAULT 'created';
 DEFINE FIELD currency ON payout_batches TYPE string DEFAULT 'USD';
 DEFINE FIELD total_amount ON payout_batches TYPE decimal DEFAULT 0;
@@ -60,7 +64,9 @@ DEFINE INDEX payout_batches_status ON payout_batches FIELDS status;
 
 DEFINE TABLE payout_items SCHEMAFULL;
 DEFINE FIELD batch ON payout_items TYPE record<payout_batches>;
-DEFINE FIELD ledger_entry ON payout_items TYPE record<settlement_ledger_entries>;
+-- Source entry is polymorphic: a `settlement_ledger_entries` record for sale
+-- settlements, or a `referral_commissions` record for referral payouts.
+DEFINE FIELD ledger_entry ON payout_items TYPE record;
 DEFINE FIELD amount ON payout_items TYPE decimal;
 DEFINE FIELD currency ON payout_items TYPE string DEFAULT 'USD';
 DEFINE FIELD created_at ON payout_items TYPE datetime DEFAULT time::now();

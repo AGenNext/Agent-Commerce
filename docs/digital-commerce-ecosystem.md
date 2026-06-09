@@ -125,15 +125,31 @@ sequenceDiagram
 
 ## Design notes
 
-- **Reuses existing layers.** Identities come from `security.surql`'s `users`; merchants,
-  payments, and the `settlement_ledger_entries` / `payout_batches` machinery in
-  `settlements_payouts.surql` handle the actual money movement. `referral_commissions`
-  is intentionally shaped like a settlement entry so payouts share one pipeline.
+- **Reuses existing layers.** Identities come from `security.surql`'s `users`; merchants
+  and payments come from the commerce schema.
+- **Shared payout pipeline.** `payout_batches` / `payout_items` in
+  `settlements_payouts.surql` were generalized to a **polymorphic beneficiary**
+  (`merchant` *or* `users`, via `beneficiary` + `beneficiary_kind`), and `payout_items.ledger_entry`
+  now accepts either a `settlement_ledger_entries` or a `referral_commissions` record.
+  `fn::create_referral_payout_batch` batches a referrer's pending commissions, and the
+  existing `fn::mark_payout_paid` settles them — one pipeline for merchant sales and
+  referral commissions alike.
+- **Audit actions.** `fn::redeem_epin` and `fn::record_referral_commission` emit
+  `commerce_actions` records (`OrderAction` / `MoneyTransfer`), matching the settlement
+  functions' audit behavior.
+- **Currency.** Defaults follow the repo norm (`USD`); set a tier's `priceCurrency` to
+  `INR` (etc.) per tier as needed.
 - **Multi-tenant + RLS.** Every table carries `tenant_id` and SurrealDB `PERMISSIONS`
   matching the repo's conventions (owner/admin/tenant scoping).
 - **Single-level by default.** `referred.depth` and `referral_commissions.level` leave
   room for multi-level structures, but the shipped function credits only the **direct**
   sponsor — deliberately conservative given the MLM caution above.
+
+## Python layer
+
+`membership_manager.py` provides a `MembershipManager` agent (profiles, programs/tiers,
+E-pins, referrals, payouts) following the `MarketplaceManager` conventions, with an
+`AgentCard` and DB-optional methods. Tests live in `tests/test_membership_manager.py`.
 
 ## Apply
 

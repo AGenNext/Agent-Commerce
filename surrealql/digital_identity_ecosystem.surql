@@ -85,7 +85,7 @@ DEFINE FIELD program ON membership_tiers TYPE record<membership_programs>;
 DEFINE FIELD tenant_id ON membership_tiers TYPE string;
 DEFINE FIELD name ON membership_tiers TYPE string;                -- e.g. Personal, Professional, Business
 DEFINE FIELD price ON membership_tiers TYPE decimal DEFAULT 0;
-DEFINE FIELD priceCurrency ON membership_tiers TYPE string DEFAULT 'INR';
+DEFINE FIELD priceCurrency ON membership_tiers TYPE string DEFAULT 'USD';
 DEFINE FIELD billing_period ON membership_tiers TYPE string DEFAULT 'P1Y' ;  -- ISO 8601 duration
 DEFINE FIELD epins_required ON membership_tiers TYPE int DEFAULT 1;          -- E-pins needed to activate
 DEFINE FIELD benefits ON membership_tiers TYPE array<string> DEFAULT [];
@@ -127,7 +127,7 @@ DEFINE FIELD tenant_id ON epins TYPE string;
 DEFINE FIELD tier ON epins TYPE record<membership_tiers>;
 DEFINE FIELD status ON epins TYPE string DEFAULT 'unused' ASSERT $value IN ['unused', 'reserved', 'redeemed', 'void'];
 DEFINE FIELD face_value ON epins TYPE decimal DEFAULT 0;
-DEFINE FIELD currency ON epins TYPE string DEFAULT 'INR';
+DEFINE FIELD currency ON epins TYPE string DEFAULT 'USD';
 DEFINE FIELD issued_to ON epins TYPE option<record<users>>;       -- buyer/distributor holding the pin
 DEFINE FIELD redeemed_by ON epins TYPE option<record<users>>;
 DEFINE FIELD redeemed_at ON epins TYPE option<datetime>;
@@ -164,7 +164,7 @@ DEFINE FIELD membership ON referral_commissions TYPE option<record<memberships>>
 DEFINE FIELD level ON referral_commissions TYPE int DEFAULT 1;
 DEFINE FIELD rate ON referral_commissions TYPE decimal DEFAULT 0;
 DEFINE FIELD amount ON referral_commissions TYPE decimal DEFAULT 0;
-DEFINE FIELD currency ON referral_commissions TYPE string DEFAULT 'INR';
+DEFINE FIELD currency ON referral_commissions TYPE string DEFAULT 'USD';
 DEFINE FIELD status ON referral_commissions TYPE string DEFAULT 'pending' ASSERT $value IN ['pending', 'approved', 'paid', 'clawed_back'];
 DEFINE FIELD created_at ON referral_commissions TYPE datetime DEFAULT time::now();
 DEFINE FIELD updated_at ON referral_commissions TYPE datetime VALUE time::now();
@@ -204,6 +204,20 @@ DEFINE FUNCTION fn::redeem_epin($code: string, $member: record<users>) {
     redeemed_at: time::now()
   };
 
+  -- Audit trail, consistent with the settlement functions.
+  CREATE commerce_actions CONTENT {
+    schema_context: 'https://schema.org',
+    schema_type: 'OrderAction',
+    agent: $member,
+    object: $membership.id,
+    instrument: $pin.id,
+    actionStatus: 'https://schema.org/CompletedActionStatus',
+    tenant_id: $pin.tenant_id,
+    price: $tier.price,
+    priceCurrency: $tier.priceCurrency,
+    metadata: { flow: 'epin_redemption', epin: $pin.code, tier: $tier.name }
+  };
+
   RETURN $membership;
 };
 
@@ -224,7 +238,7 @@ DEFINE FUNCTION fn::record_referral_commission($membership: record<memberships>)
 
   LET $amount = $tier.price * $tier.referral_rate;
 
-  RETURN CREATE referral_commissions CONTENT {
+  LET $commission = CREATE referral_commissions CONTENT {
     tenant_id: $m.tenant_id,
     beneficiary: $sponsor,
     source_member: $m.member,
@@ -235,6 +249,53 @@ DEFINE FUNCTION fn::record_referral_commission($membership: record<memberships>)
     currency: $tier.priceCurrency,
     status: 'pending'
   };
+
+  -- Audit trail, consistent with the settlement functions.
+  CREATE commerce_actions CONTENT {
+    schema_context: 'https://schema.org',
+    schema_type: 'MoneyTransfer',
+    agent: $sponsor,
+    recipient: $sponsor,
+    object: $commission.id,
+    actionStatus: 'https://schema.org/CompletedActionStatus',
+    tenant_id: $m.tenant_id,
+    amount: $amount,
+    currency: $tier.priceCurrency,
+    metadata: { flow: 'referral_commission', source_member: $m.member, membership: $membership }
+  };
+
+  RETURN $commission;
+};
+
+-- Batch a referrer's pending referral commissions into the shared payout
+-- pipeline (payout_batches / payout_items). The resulting batch is settled by
+-- the existing fn::mark_payout_paid, which marks each linked entry 'paid'.
+DEFINE FUNCTION fn::create_referral_payout_batch($beneficiary: record<users>, $currency: string) {
+  IF $auth.role != 'admin' { THROW 'Admin role required'; };
+
+  LET $entries = SELECT * FROM referral_commissions WHERE beneficiary = $beneficiary AND currency = $currency AND status = 'pending';
+  LET $total = math::sum($entries.amount);
+
+  LET $batch = CREATE payout_batches CONTENT {
+    tenant_id: $auth.tenant_id,
+    beneficiary: $beneficiary,
+    beneficiary_kind: 'user',
+    currency: $currency,
+    total_amount: $total,
+    status: 'created'
+  };
+
+  FOR $entry IN $entries {
+    CREATE payout_items CONTENT {
+      batch: $batch.id,
+      ledger_entry: $entry.id,
+      amount: $entry.amount,
+      currency: $entry.currency
+    };
+    UPDATE $entry.id MERGE { status: 'approved' };
+  };
+
+  RETURN $batch;
 };
 
 -- ============================================================
