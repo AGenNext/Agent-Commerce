@@ -11,6 +11,7 @@ on:
       - 'docker-compose.protocol.yml'
       - 'requirements-protocol.txt'
       - 'k8s/protocol-service.yaml'
+      - 'tests/test_protocol_service.py'
       - '.github/workflows/protocol-service.yml'
   push:
     branches: [main]
@@ -23,6 +24,7 @@ on:
       - 'docker-compose.protocol.yml'
       - 'requirements-protocol.txt'
       - 'k8s/protocol-service.yaml'
+      - 'tests/test_protocol_service.py'
       - '.github/workflows/protocol-service.yml'
 
 permissions:
@@ -51,6 +53,9 @@ jobs:
 
       - name: Validate JSON schema
         run: python -m json.tool schemas/foundation-agent-commerce-protocol-profile.schema.json >/tmp/protocol-schema.json
+
+      - name: Run protocol tests
+        run: pytest tests/test_protocol_service.py -q
 
       - name: Build Docker image
         run: docker build -f Dockerfile.protocol -t ghcr.io/agennext/agent-commerce-protocol:${{ github.sha }} .
