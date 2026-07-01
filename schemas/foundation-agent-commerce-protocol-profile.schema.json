@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AGenNext/Agent-Commerce/schemas/foundation-agent-commerce-protocol-profile.schema.json",
+  "title": "Foundation Agent-Commerce Protocol Profile",
+  "description": "Minimal implementation profile for UCP commerce actions, AP2 payment mandates, A2A agent task envelopes, and x402 payment challenges.",
+  "oneOf": [
+    { "$ref": "#/$defs/UcpActionRequest" },
+    { "$ref": "#/$defs/UcpActionResponse" },
+    { "$ref": "#/$defs/Ap2MandateCreate" },
+    { "$ref": "#/$defs/Ap2MandateVerifyResponse" },
+    { "$ref": "#/$defs/Ap2PaymentExecute" },
+    { "$ref": "#/$defs/Ap2PaymentExecuteResponse" },
+    { "$ref": "#/$defs/A2aAgentCard" },
+    { "$ref": "#/$defs/A2aTaskRequest" },
+    { "$ref": "#/$defs/A2aTaskResponse" },
+    { "$ref": "#/$defs/X402PaymentChallenge" }
+  ],
+  "$defs": {
+    "Actor": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "type": "string", "enum": ["user", "agent", "system"] },
+        "id": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "ResourceRef": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "id": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "UcpActionRequest": {
+      "type": "object",
+      "required": ["ucp_version", "type", "action", "actor", "resource", "input", "trace_id"],
+      "properties": {
+        "ucp_version": { "type": "string" },
+        "type": { "const": "commerce.action.request" },
+        "action": {
+          "type": "string",
+          "enum": [
+            "product.create",
+            "product.search",
+            "cart.update",
+            "checkout.create",
+            "order.status.read",
+            "refund.request"
+          ]
+        },
+        "actor": { "$ref": "#/$defs/Actor" },
+        "resource": { "$ref": "#/$defs/ResourceRef" },
+        "input": { "type": "object" },
+        "trace_id": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "UcpActionResponse": {
+      "type": "object",
+      "required": ["ucp_version", "type", "action", "status", "trace_id"],
+      "properties": {
+        "ucp_version": { "type": "string" },
+        "type": { "const": "commerce.action.response" },
+        "action": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["accepted", "rejected", "requires_payment_authorization", "completed"]
+        },
+        "result": { "type": "object" },
+        "next_required_protocol": { "type": "string", "enum": ["AP2", "x402", "A2A", "none"] },
+        "trace_id": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "Ap2MandateCreate": {
+      "type": "object",
+      "required": ["ap2_version", "type", "mandate_id", "grantor", "grantee", "constraints", "context", "nonce", "signature"],
+      "properties": {
+        "ap2_version": { "type": "string" },
+        "type": { "const": "payment.mandate.create" },
+        "mandate_id": { "type": "string", "minLength": 1 },
+        "grantor": { "$ref": "#/$defs/Actor" },
+        "grantee": { "$ref": "#/$defs/Actor" },
+        "constraints": {
+          "type": "object",
+          "required": ["max_amount", "currency", "merchant_id", "purpose", "expires_at", "single_use"],
+          "properties": {
+            "max_amount": { "type": "number", "exclusiveMinimum": 0 },
+            "currency": { "type": "string", "minLength": 3, "maxLength": 3 },
+            "merchant_id": { "type": "string", "minLength": 1 },
+            "purpose": { "type": "string", "minLength": 1 },
+            "expires_at": { "type": "string", "format": "date-time" },
+            "single_use": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "context": {
+          "type": "object",
+          "properties": {
+            "checkout_id": { "type": "string" },
+            "order_preview_id": { "type": "string" }
+          },
+          "additionalProperties": true
+        },
+        "nonce": { "type": "string", "minLength": 1 },
+        "signature": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "Ap2MandateVerifyResponse": {
+      "type": "object",
+      "required": ["ap2_version", "type", "mandate_id", "status", "decision"],
+      "properties": {
+        "ap2_version": { "type": "string" },
+        "type": { "const": "payment.mandate.verify.response" },
+        "mandate_id": { "type": "string" },
+        "status": { "type": "string", "enum": ["verified", "invalid", "expired", "consumed"] },
+        "decision": { "type": "string", "enum": ["allow", "deny"] },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "Ap2PaymentExecute": {
+      "type": "object",
+      "required": ["ap2_version", "type", "mandate_id", "amount", "currency", "merchant_id", "checkout_id", "idempotency_key", "trace_id"],
+      "properties": {
+        "ap2_version": { "type": "string" },
+        "type": { "const": "payment.execute" },
+        "mandate_id": { "type": "string" },
+        "amount": { "type": "number", "exclusiveMinimum": 0 },
+        "currency": { "type": "string", "minLength": 3, "maxLength": 3 },
+        "merchant_id": { "type": "string" },
+        "checkout_id": { "type": "string" },
+        "idempotency_key": { "type": "string", "minLength": 1 },
+        "trace_id": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "Ap2PaymentExecuteResponse": {
+      "type": "object",
+      "required": ["ap2_version", "type", "payment_id", "mandate_id", "status", "amount", "currency", "trace_id"],
+      "properties": {
+        "ap2_version": { "type": "string" },
+        "type": { "const": "payment.execute.response" },
+        "payment_id": { "type": "string" },
+        "mandate_id": { "type": "string" },
+        "status": { "type": "string", "enum": ["paid", "failed", "pending"] },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "trace_id": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "A2aAgentCard": {
+      "type": "object",
+      "required": ["a2a_version", "type", "agent_id", "name", "endpoint", "capabilities", "accepted_protocols"],
+      "properties": {
+        "a2a_version": { "type": "string" },
+        "type": { "const": "agent.card" },
+        "agent_id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "endpoint": { "type": "string", "format": "uri" },
+        "capabilities": { "type": "array", "items": { "type": "string" } },
+        "accepted_protocols": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["UCP", "AP2", "A2A", "x402"] }
+        }
+      },
+      "additionalProperties": false
+    },
+    "A2aTaskRequest": {
+      "type": "object",
+      "required": ["a2a_version", "type", "from_agent", "to_agent", "task", "payload", "trace_id"],
+      "properties": {
+        "a2a_version": { "type": "string" },
+        "type": { "const": "agent.task.request" },
+        "from_agent": { "type": "string" },
+        "to_agent": { "type": "string" },
+        "task": { "type": "string" },
+        "payload": { "type": "object" },
+        "trace_id": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "A2aTaskResponse": {
+      "type": "object",
+      "required": ["a2a_version", "type", "from_agent", "to_agent", "task", "status", "trace_id"],
+      "properties": {
+        "a2a_version": { "type": "string" },
+        "type": { "const": "agent.task.response" },
+        "from_agent": { "type": "string" },
+        "to_agent": { "type": "string" },
+        "task": { "type": "string" },
+        "status": { "type": "string", "enum": ["accepted", "completed", "failed"] },
+        "result": { "type": "object" },
+        "trace_id": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "X402PaymentChallenge": {
+      "type": "object",
+      "required": ["x402_version", "type", "resource", "amount", "currency", "network", "pay_to", "expires_at", "challenge_id"],
+      "properties": {
+        "x402_version": { "type": "string" },
+        "type": { "const": "payment.challenge" },
+        "resource": { "type": "string" },
+        "amount": { "type": "number", "exclusiveMinimum": 0 },
+        "currency": { "type": "string", "minLength": 3, "maxLength": 3 },
+        "network": { "type": "string" },
+        "pay_to": { "type": "string" },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "challenge_id": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}
