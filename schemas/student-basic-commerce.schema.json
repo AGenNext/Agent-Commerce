@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AGenNext/Agent-Commerce/schemas/student-basic-commerce.schema.json",
+  "title": "Student Basic Commerce Schema",
+  "description": "A small beginner-friendly e-commerce schema for Agent-Commerce. This intentionally avoids schema.org, marketplace-specific models, and advanced data modeling.",
+  "type": "object",
+  "properties": {
+    "products": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Product" }
+    },
+    "customers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Customer" }
+    },
+    "orders": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Order" }
+    },
+    "payments": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Payment" }
+    },
+    "agent_permissions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/AgentPermission" }
+    }
+  },
+  "$defs": {
+    "Product": {
+      "type": "object",
+      "required": ["id", "name", "price", "currency", "stock", "status"],
+      "properties": {
+        "id": { "type": "string", "examples": ["prod_001"] },
+        "name": { "type": "string", "examples": ["Notebook"] },
+        "description": { "type": "string", "examples": ["A simple ruled notebook"] },
+        "price": { "type": "number", "minimum": 0 },
+        "currency": { "type": "string", "minLength": 3, "maxLength": 3, "examples": ["INR", "USD"] },
+        "stock": { "type": "integer", "minimum": 0 },
+        "status": { "type": "string", "enum": ["active", "inactive"] }
+      }
+    },
+    "Customer": {
+      "type": "object",
+      "required": ["id", "name", "email"],
+      "properties": {
+        "id": { "type": "string", "examples": ["cust_001"] },
+        "name": { "type": "string", "examples": ["Asha"] },
+        "email": { "type": "string", "format": "email", "examples": ["asha@example.com"] }
+      }
+    },
+    "OrderItem": {
+      "type": "object",
+      "required": ["product_id", "quantity", "price"],
+      "properties": {
+        "product_id": { "type": "string", "examples": ["prod_001"] },
+        "quantity": { "type": "integer", "minimum": 1 },
+        "price": { "type": "number", "minimum": 0 }
+      }
+    },
+    "Order": {
+      "type": "object",
+      "required": ["id", "customer_id", "items", "total", "currency", "status"],
+      "properties": {
+        "id": { "type": "string", "examples": ["order_001"] },
+        "customer_id": { "type": "string", "examples": ["cust_001"] },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/OrderItem" }
+        },
+        "total": { "type": "number", "minimum": 0 },
+        "currency": { "type": "string", "minLength": 3, "maxLength": 3, "examples": ["INR", "USD"] },
+        "status": { "type": "string", "enum": ["created", "paid", "cancelled", "refunded"] }
+      }
+    },
+    "Payment": {
+      "type": "object",
+      "required": ["id", "order_id", "amount", "currency", "provider", "status"],
+      "properties": {
+        "id": { "type": "string", "examples": ["pay_001"] },
+        "order_id": { "type": "string", "examples": ["order_001"] },
+        "amount": { "type": "number", "minimum": 0 },
+        "currency": { "type": "string", "minLength": 3, "maxLength": 3, "examples": ["INR", "USD"] },
+        "provider": { "type": "string", "enum": ["mock", "stripe", "paypal"] },
+        "status": { "type": "string", "enum": ["pending", "paid", "failed", "refunded"] }
+      }
+    },
+    "AgentPermission": {
+      "type": "object",
+      "required": ["agent_id", "allowed_actions"],
+      "properties": {
+        "agent_id": { "type": "string", "examples": ["agent_store_helper"] },
+        "allowed_actions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "product.create",
+              "product.list",
+              "customer.create",
+              "order.create",
+              "order.read",
+              "payment.create",
+              "payment.read"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
