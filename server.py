@@ -86,8 +86,40 @@ app = FastAPI(title="Agent-Commerce API", description="UCP Commerce Agents with 
 db: SurrealDBLayer | None = None
 stores: dict[str, StoreManager] = {}
 vendors: dict[str, VendorAgent] = {}
+marketplace_manager: MarketplaceManager | None = None
+site_admin_manager: SiteAdmin | None = None
 _request_log: dict[str, deque[float]] = defaultdict(deque)
 _refresh_tokens: dict[str, dict] = {}
+
+CORE_TABLES = [
+    "products",
+    "orders",
+    "customers",
+    "agents",
+    "vendors",
+    "vendor_products",
+    "vendor_orders",
+    "vendor_payouts",
+    "vendor_messages",
+    "marketplace_vendors",
+    "marketplace_orders",
+    "marketplace_payouts",
+    "discounts",
+    "returns",
+    "refunds",
+    "inventory_logs",
+    "store_settings",
+    "marketplace_settings",
+    "conversations",
+    "messages",
+    "api_clients",
+    "api_keys",
+    "webhooks",
+    "audit_logs",
+    "site_info",
+    "staff_users",
+    "roles",
+]
 
 
 class ProductCreate(BaseModel):
@@ -174,6 +206,42 @@ def _extract_api_key(authorization: str | None, x_api_key: str | None) -> str | 
     return bearer or x_api_key
 
 
+def require_db() -> SurrealDBLayer:
+    if not db or not db.connected:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database not ready")
+    return db
+
+
+def get_store_manager(store_id: str) -> StoreManager:
+    database = require_db()
+    if store_id not in stores or stores[store_id].db is not database:
+        stores[store_id] = StoreManager(db=database, config={"store_id": store_id})
+    return stores[store_id]
+
+
+def get_vendor_agent(vendor_id: str) -> VendorAgent:
+    database = require_db()
+    if vendor_id not in vendors or vendors[vendor_id].db is not database:
+        vendors[vendor_id] = VendorAgent(db=database, config={"vendor_id": vendor_id})
+    return vendors[vendor_id]
+
+
+def get_site_admin() -> SiteAdmin:
+    global site_admin_manager
+    database = require_db()
+    if site_admin_manager is None or site_admin_manager.db is not database:
+        site_admin_manager = SiteAdmin(db=database)
+    return site_admin_manager
+
+
+def get_marketplace_manager() -> MarketplaceManager:
+    global marketplace_manager
+    database = require_db()
+    if marketplace_manager is None or marketplace_manager.db is not database:
+        marketplace_manager = MarketplaceManager(db=database)
+    return marketplace_manager
+
+
 async def require_api_key(authorization: Annotated[str | None, Header()] = None, x_api_key: Annotated[str | None, Header()] = None) -> str:
     if not settings.auth_required:
         return "development"
@@ -227,10 +295,9 @@ async def startup() -> None:
     db = SurrealDBLayer(url=settings.surrealdb_url, config={"user": settings.surrealdb_user, "password": settings.surrealdb_password, "namespace": settings.surrealdb_namespace, "database": settings.surrealdb_database})
     await db.connect()
     await db.use(settings.surrealdb_namespace, settings.surrealdb_database)
-    await db.create_table("products")
-    await db.create_table("orders")
-    await db.create_table("agents")
-    logger.info("SurrealDB connected")
+    for table in CORE_TABLES:
+        await db.create_table(table)
+    logger.info("SurrealDB connected and core tables initialized")
 
 
 @app.post("/auth/login", response_model=TokenResponse)
@@ -265,9 +332,8 @@ async def health():
 
 @app.get("/ready")
 async def ready():
-    if db and db.connected:
-        return {"status": "ready", "db": "connected"}
-    raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database not ready")
+    database = require_db()
+    return {"status": "ready", "db": "connected", "url": database.url}
 
 
 protected = Depends(require_api_key)
@@ -276,78 +342,73 @@ admin_only = Depends(require_admin)
 
 @app.post("/api/store/products", dependencies=[protected])
 async def create_product(data: ProductCreate):
-    store_key = data.store_id
-    if store_key not in stores:
-        stores[store_key] = StoreManager(config={})
-    return await stores[store_key].create_product(data.model_dump())
+    store = get_store_manager(data.store_id)
+    return await store.create_product(data.model_dump())
 
 
 @app.get("/api/store/products", dependencies=[protected])
 async def list_products(store_id: str = "default"):
-    store = stores.get(store_id, StoreManager(config={}))
+    store = get_store_manager(store_id)
     return await store.list_products()
 
 
 @app.post("/api/store/orders", dependencies=[protected])
 async def create_order(data: OrderCreate):
-    store = stores.get(data.store_id, StoreManager(config={}))
+    store = get_store_manager(data.store_id)
     return await store.create_order(data.model_dump())
 
 
 @app.get("/api/store/dashboard", dependencies=[protected])
 async def dashboard(store_id: str = "default"):
-    store = stores.get(store_id, StoreManager(config={}))
+    store = get_store_manager(store_id)
     return await store.get_dashboard()
 
 
 @app.get("/api/admin/info", dependencies=[admin_only])
 async def site_info():
-    admin = SiteAdmin()
+    admin = get_site_admin()
     return await admin.get_site_info()
 
 
 @app.get("/api/admin/users", dependencies=[admin_only])
 async def users():
-    admin = SiteAdmin()
+    admin = get_site_admin()
     return await admin.get_users()
 
 
 @app.get("/api/admin/roles", dependencies=[admin_only])
 async def roles():
-    admin = SiteAdmin()
+    admin = get_site_admin()
     return await admin.get_roles()
 
 
 @app.post("/api/vendor/products", dependencies=[protected])
 async def vendor_product(data: VendorProductCreate):
-    vendor_id = data.vendor_id
-    if vendor_id not in vendors:
-        vendors[vendor_id] = VendorAgent()
-    return await vendors[vendor_id].create_product(vendor_id, data.model_dump())
+    vendor = get_vendor_agent(data.vendor_id)
+    return await vendor.create_product(data.vendor_id, data.model_dump())
 
 
 @app.get("/api/vendor/{vendor_id}/dashboard", dependencies=[protected])
 async def vendor_dashboard(vendor_id: str):
-    if vendor_id not in vendors:
-        vendors[vendor_id] = VendorAgent()
-    return await vendors[vendor_id].get_dashboard(vendor_id)
+    vendor = get_vendor_agent(vendor_id)
+    return await vendor.get_dashboard(vendor_id)
 
 
 @app.get("/api/marketplace/settings", dependencies=[admin_only])
 async def mp_settings():
-    mgr = MarketplaceManager()
+    mgr = get_marketplace_manager()
     return await mgr.get_settings()
 
 
 @app.get("/api/marketplace/dashboard", dependencies=[protected])
 async def mp_dashboard():
-    mgr = MarketplaceManager()
+    mgr = get_marketplace_manager()
     return await mgr.get_dashboard()
 
 
 @app.post("/api/marketplace/conversations", dependencies=[protected])
 async def create_conversation(data: ConversationCreate):
-    mgr = MarketplaceManager()
+    mgr = get_marketplace_manager()
     return await mgr.create_conversation(data.participants)
 
 
@@ -368,9 +429,8 @@ async def providers():
 
 @app.get("/api/db/health", dependencies=[admin_only])
 async def db_health():
-    if db:
-        return await db.health()
-    return {"status": "not_initialized"}
+    database = require_db()
+    return await database.health()
 
 
 if __name__ == "__main__":
