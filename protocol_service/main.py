@@ -6,8 +6,9 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import PlainTextResponse
-from jsonschema import Draft202012Validator
 from pydantic import BaseModel, Field
+
+from protocol_service.validator import validate_payload
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE_DOC = ROOT / "docs" / "foundation-agent-commerce-protocol-profile.md"
@@ -39,7 +40,7 @@ def load_profile_doc() -> str:
 app = FastAPI(
     title="Foundation Agent-Commerce Protocol Service",
     description="Deployable validator API for UCP, AP2, A2A, and x402 Agent-Commerce protocol payloads.",
-    version="0.1.0",
+    version="0.1.1",
 )
 
 
@@ -47,7 +48,7 @@ app = FastAPI(
 def root() -> dict[str, Any]:
     return {
         "name": "Foundation Agent-Commerce Protocol Service",
-        "version": "0.1.0",
+        "version": "0.1.1",
         "protocols": ["UCP", "AP2", "A2A", "x402"],
         "endpoints": {
             "health": "/health",
@@ -77,12 +78,11 @@ def schema() -> dict[str, Any]:
 @app.post("/validate", response_model=ValidationResponse)
 def validate_protocol(request: ValidationRequest) -> ValidationResponse:
     schema_data = load_schema()
-    validator = Draft202012Validator(schema_data)
-    errors = sorted(validator.iter_errors(request.payload), key=lambda error: list(error.path))
+    errors = validate_payload(schema_data, request.payload)
     return ValidationResponse(
         valid=not errors,
         schema_id=schema_data.get("$id", "foundation-agent-commerce-protocol-profile"),
-        errors=[error.message for error in errors],
+        errors=errors,
     )
 
 
@@ -95,13 +95,7 @@ def examples() -> dict[str, Any]:
             "action": "product.create",
             "actor": {"type": "agent", "id": "agent_store_helper"},
             "resource": {"type": "product"},
-            "input": {
-                "name": "Notebook",
-                "description": "A simple ruled notebook",
-                "price": 99,
-                "currency": "INR",
-                "stock": 50,
-            },
+            "input": {"name": "Notebook", "price": 99, "currency": "INR", "stock": 50},
             "trace_id": "trace_001",
         },
         "ap2_mandate_create": {
@@ -118,18 +112,17 @@ def examples() -> dict[str, Any]:
                 "expires_at": "2026-07-01T21:00:00+05:30",
                 "single_use": True,
             },
-            "context": {"checkout_id": "chk_001", "order_preview_id": "order_preview_001"},
+            "context": {"checkout_id": "chk_001"},
             "nonce": "nonce_001",
-            "signature": "sig_placeholder_for_profile",
+            "signature": "profile_signature_placeholder",
         },
         "a2a_agent_card": {
             "a2a_version": "0.1-profile",
             "type": "agent.card",
             "agent_id": "agent_checkout_helper",
             "name": "Checkout Helper Agent",
-            "description": "Handles checkout creation and payment authorization requests.",
             "endpoint": "https://example.com/agents/checkout-helper",
-            "capabilities": ["checkout.create", "payment.mandate.request", "order.status.read"],
+            "capabilities": ["checkout.create", "payment.mandate.request"],
             "accepted_protocols": ["UCP", "AP2", "A2A"],
         },
         "x402_challenge": {
@@ -139,7 +132,7 @@ def examples() -> dict[str, Any]:
             "amount": 1,
             "currency": "USD",
             "network": "base",
-            "pay_to": "0xMerchantWallet",
+            "pay_to": "merchant_wallet_placeholder",
             "expires_at": "2026-07-01T21:00:00+05:30",
             "challenge_id": "x402_challenge_001",
         },
