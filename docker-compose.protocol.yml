@@ -1,0 +1,9 @@
+services:
+  agent-commerce-protocol:
+    build:
+      context: .
+      dockerfile: Dockerfile.protocol
+    image: agent-commerce-protocol:local
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
