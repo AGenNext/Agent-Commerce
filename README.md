@@ -10,75 +10,87 @@ AI-powered e-commerce agents built with Universal Commerce Protocol (UCP), Agent
 ## Features
 
 - **UCP Commerce Agent** - AI agent with 40+ commerce skills
-- **Store Manager** - WooCommerce, Shopify, Mercur integrations  
+- **Store Manager** - WooCommerce, Shopify, Mercur integrations
 - **Payment Protocols** - 8 providers: AP2, x402, Stripe, PayPal, Mastercard, Open Banking, MPP, Shopify
 - **Marketplace Manager** - Vendors, commissions, payouts, disputes
 - **Site Admin** - Users, roles, API keys, webhooks
 - **SurrealDB Layer** - Centralized data with CRUD, relations, search
+- **FastAPI Runtime** - JWT auth, rate limiting, secure headers, health/readiness probes
 
 ## Quick Start
 
-```python
-# Install
-pip install surrealdb aiohttp fastapi uvicorn
-
-# Create product
-from store_manager import StoreManager
-
-store = StoreManager(config={})
-product = await store.create_product({
-    "title": "AI Widget",
-    "price": 29.99
-})
-print(f"Created: {product['id']}")
-
-# Process payment
-from adapters import PaymentAdapterFactory
-
-adapter = PaymentAdapterFactory.create("stripe")
-payment = await adapter.create_payment(29.99, "USD")
-print(f"Payment: {payment['id']}")
-```
-
-## Installation
-
 ```bash
-# Clone
 git clone https://github.com/AGenNext/Agent-Commerce.git
 cd Agent-Commerce
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Run tests
 python test_e2e.py
 ```
+
+## Local Development
+
+```bash
+cp .env.example .env
+docker compose up -d
+```
+
+Local endpoints:
+
+- API: http://localhost:8080
+- Health: http://localhost:8080/health
+- Readiness: http://localhost:8080/ready
+- OpenAPI docs: http://localhost:8080/docs
+
+## Authentication
+
+The API supports API-key auth, admin API-key auth, and JWT bearer tokens.
+
+Example API-key request:
+
+```bash
+curl -H "X-API-Key: local-dev-api-key" http://localhost:8080/api/providers
+```
+
+For production, set strong values for `API_KEY`, `ADMIN_API_KEY`, and `JWT_SECRET`. Never commit real secrets.
 
 ## Docker
 
 ```bash
-# Build
 docker build -t agent-commerce .
-
-# Run
-docker run -p 8000:8000 agent-commerce
+docker run -p 8000:8000 --env-file .env agent-commerce
 ```
 
-## Deploy
+## Production Deployment
 
 The repository publishes a container image to GitHub Container Registry on every push to `main`.
 
 ```bash
 docker pull ghcr.io/agennext/agent-commerce:latest
-docker run -p 8000:8000 ghcr.io/agennext/agent-commerce:latest
+docker run -p 8000:8000 --env-file .env ghcr.io/agennext/agent-commerce:latest
 ```
 
-## API Server
+Required production variables:
 
-```bash
-python server.py
-# Visit http://localhost:8000
+```env
+ENVIRONMENT=production
+API_KEY=<high-entropy-secret>
+ADMIN_API_KEY=<high-entropy-secret>
+JWT_SECRET=<high-entropy-secret>
+SURREALDB_URL=<persistent-db-url>
+SURREALDB_USER=<db-user>
+SURREALDB_PASSWORD=<db-password>
+SURREALDB_NAMESPACE=ucp
+SURREALDB_DATABASE=ecommerce
 ```
+
+Production checklist:
+
+- Use a persistent external SurrealDB deployment; do not use `mem://` in production.
+- Terminate TLS at a reverse proxy or load balancer.
+- Replace in-memory rate limiting with Redis or gateway-level limits for multi-replica deployments.
+- Persist refresh/session tokens outside process memory.
+- Add metrics, tracing, and centralized log aggregation.
+- Rotate API keys and JWT secrets regularly.
+- Verify payment providers against sandbox environments before accepting real payments.
 
 ## SDK
 
@@ -116,6 +128,8 @@ async with Client(api_key="sk_...") as client:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/health` | Liveness probe |
+| GET | `/ready` | Readiness probe |
 | POST | `/api/store/products` | Create product |
 | GET | `/api/store/products` | List products |
 | POST | `/api/store/orders` | Create order |
@@ -135,29 +149,6 @@ Store Manager    10/10
 Platform Factory  3/3
 Site Admin       10/10
 Payment Adapters 24/24
-```
-
-## Project Structure
-
-```
-/workspace/project/
-├── ucp_agent.py           # UCP Commerce Agent
-├── store_manager.py       # Store Manager
-├── site_admin.py        # Site Admin
-├── vendor_agent.py      # Vendor Agent
-├── marketplace_manager.py # Marketplace
-├── surrealdb_layer.py   # SurrealDB layer
-├── server.py            # FastAPI server
-├── index.html          # Landing page
-├── Dockerfile          # Container
-├── adapters/           # 8 payment adapters
-│   ├── ap2_adapter.py
-│   ├── x402_adapter.py
-│   ├── stripe_adapter.py
-│   └── ...
-└── sdk/
-    ├── python/          # Python SDK
-    └── js/            # JavaScript SDK (coming)
 ```
 
 ## Source URLs
