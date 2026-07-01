@@ -139,9 +139,9 @@
         "payment_id": { "type": "string" },
         "mandate_id": { "type": "string" },
         "status": { "type": "string", "enum": ["paid", "failed", "pending"] },
-        "amount": { "type": "number" },
-        "currency": { "type": "string" },
-        "trace_id": { "type": "string" }
+        "amount": { "type": "number", "exclusiveMinimum": 0 },
+        "currency": { "type": "string", "minLength": 3, "maxLength": 3 },
+        "trace_id": { "type": "string", "minLength": 1 }
       },
       "additionalProperties": false
     },
