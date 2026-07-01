@@ -1,0 +1,101 @@
+model
+  schema 1.1
+
+# ============================================================
+# Agent-Commerce digital identity & commerce ecosystem
+# OpenFGA (ReBAC) authorization model.
+#
+# Complements — does not replace — the SurrealDB row-level PERMISSIONS.
+# SurrealDB stays the data source of truth; OpenFGA answers fine-grained,
+# relationship-based check(user, relation, object) questions that are awkward
+# to express as row rules — notably tenant scoping, merchant org membership,
+# and the referral network's (optionally multi-level) sponsor hierarchy.
+# ============================================================
+
+type user
+
+# Tenant: the top of the scoping hierarchy. Every other object hangs off a
+# tenant, mirroring the `tenant_id` field used throughout the SurrealQL schema.
+type tenant
+  relations
+    define admin: [user]
+    define member: [user] or admin
+
+# Merchant / organization. Owners and admins manage it; tenant admins inherit.
+type organization
+  relations
+    define tenant: [tenant]
+    define owner: [user]
+    define admin: [user] or owner or admin from tenant
+    define member: [user] or admin
+    define can_manage: admin
+    define can_view: member or admin from tenant
+
+# Network node: a user's position in the referral graph. `sponsor` is the direct
+# upline; `upline` is the transitive closure — the ReBAC capability that plain
+# row-level rules cannot express. Visibility into downline commissions is left
+# to the application; this models the structure.
+type network_node
+  relations
+    define tenant: [tenant]
+    define account: [user]
+    define sponsor: [network_node]
+    define upline: sponsor or upline from sponsor
+
+# Digital identity profile ("AI business card"). Public viewing via the user:*
+# wildcard mirrors the `is_public` row rule.
+type identity_profile
+  relations
+    define tenant: [tenant]
+    define owner: [user]
+    define org: [organization]
+    define can_edit: owner or admin from tenant
+    define can_view: [user, user:*] or owner or admin from tenant
+
+type membership_program
+  relations
+    define tenant: [tenant]
+    define can_manage: admin from tenant
+    define can_view: [user:*] or admin from tenant
+
+type membership_tier
+  relations
+    define program: [membership_program]
+    define can_manage: can_manage from program
+    define can_view: can_view from program
+
+type membership
+  relations
+    define tenant: [tenant]
+    define member: [user]
+    define tier: [membership_tier]
+    define can_view: member or admin from tenant
+    define can_manage: admin from tenant
+
+# Prepaid activation pin. The holder may redeem it; single-use state is still
+# enforced at the application/SurrealDB layer.
+type epin
+  relations
+    define tenant: [tenant]
+    define holder: [user]
+    define redeemer: [user]
+    define can_view: holder or redeemer or admin from tenant
+    define can_redeem: holder or admin from tenant
+    define can_manage: admin from tenant
+
+type referral_commission
+  relations
+    define tenant: [tenant]
+    define beneficiary: [user]
+    define can_view: beneficiary or admin from tenant
+    define can_manage: admin from tenant
+
+# Payout batch with a polymorphic beneficiary: a user (referral payout) or the
+# members of a merchant organization (settlement payout) — matching the
+# generalized payout_batches table.
+type payout_batch
+  relations
+    define tenant: [tenant]
+    define beneficiary: [user, organization#member]
+    define can_view: beneficiary or admin from tenant
+    define can_manage: admin from tenant
