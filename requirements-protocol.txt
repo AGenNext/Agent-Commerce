@@ -2,3 +2,5 @@ fastapi
 uvicorn[standard]
 jsonschema
 pydantic
+pytest
+httpx
