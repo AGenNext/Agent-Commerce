@@ -1,0 +1,51 @@
+name: Protocol Service
+
+on:
+  pull_request:
+    paths:
+      - 'protocol_service/**'
+      - 'schemas/**'
+      - 'docs/foundation-agent-commerce-protocol-profile.md'
+      - 'Dockerfile.protocol'
+      - 'docker-compose.protocol.yml'
+      - 'requirements-protocol.txt'
+      - '.github/workflows/protocol-service.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'protocol_service/**'
+      - 'schemas/**'
+      - 'docs/foundation-agent-commerce-protocol-profile.md'
+      - 'Dockerfile.protocol'
+      - 'docker-compose.protocol.yml'
+      - 'requirements-protocol.txt'
+      - '.github/workflows/protocol-service.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-protocol.txt
+
+      - name: Import service
+        run: python -c "from protocol_service.main import app; print(app.title)"
+
+      - name: Validate schema JSON
+        run: python -m json.tool schemas/foundation-agent-commerce-protocol-profile.schema.json >/tmp/schema.json
+
+      - name: Build Docker image
+        run: docker build -f Dockerfile.protocol -t agent-commerce-protocol:test .
