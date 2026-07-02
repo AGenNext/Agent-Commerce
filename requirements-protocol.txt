@@ -1,6 +1,6 @@
 fastapi
 uvicorn[standard]
-jsonschema
+jsonschema[format]
 pydantic
 pytest
 httpx
