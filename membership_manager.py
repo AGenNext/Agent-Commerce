@@ -31,9 +31,10 @@ class MembershipManager:
     fn::record_referral_commission, fn::create_referral_payout_batch).
     """
 
-    def __init__(self, db=None, config: dict | None = None):
+    def __init__(self, db=None, config: dict | None = None, authz=None):
         self.db = db
         self.config = config or {}
+        self.authz = authz  # optional authz.AuthzSync for OpenFGA tuple-sync
         self.agent_id = f"membership_mgr_{uuid.uuid4().hex[:8]}"
 
     # ========== IDENTITY PROFILES ==========
@@ -56,6 +57,12 @@ class MembershipManager:
 
         if self.db:
             await self.db.create("identity_profiles", record)
+
+        if self.authz and record.get("owner"):
+            await self.authz.on_profile_created(
+                record["id"], record["owner"], record["tenant_id"],
+                org_id=record.get("organization"), is_public=record["is_public"],
+            )
 
         return record
 
@@ -102,6 +109,8 @@ class MembershipManager:
         }
         if self.db:
             await self.db.create("membership_programs", program)
+        if self.authz:
+            await self.authz.on_program_created(program["id"], program["tenant_id"])
         return program
 
     async def create_tier(self, tier: dict) -> dict:
@@ -120,6 +129,8 @@ class MembershipManager:
         }
         if self.db:
             await self.db.create("membership_tiers", record)
+        if self.authz and record.get("program"):
+            await self.authz.on_tier_created(record["id"], record["program"])
         return record
 
     async def list_tiers(self) -> dict:
@@ -172,6 +183,8 @@ class MembershipManager:
                 "CONTENT { tenant_id: 'default', code: $code, depth: 1 };",
                 {"sponsor": sponsor_id, "member": member_id, "code": code},
             )
+        if self.authz:
+            await self.authz.on_referral_linked(sponsor_id, member_id, "default")
         return {"linked": True, "sponsor": sponsor_id, "member": member_id}
 
     async def record_referral_commission(self, membership_id: str) -> dict:

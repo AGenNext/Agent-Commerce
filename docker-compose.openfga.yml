@@ -1,0 +1,59 @@
+# OpenFGA overlay for the Agent-Commerce stack.
+# Combine with the base stack:
+#   docker compose -f docker-compose.yml -f docker-compose.openfga.yml up -d
+# Then load the model (see scripts/load_openfga_model.sh) and set
+# OPENFGA_* env vars for agent-api.
+
+version: '3.8'
+
+services:
+  openfga-postgres:
+    image: postgres:16
+    container_name: agent-commerce-openfga-db
+    environment:
+      - POSTGRES_USER=openfga
+      - POSTGRES_PASSWORD=openfga
+      - POSTGRES_DB=openfga
+    volumes:
+      - openfga_pg_data:/var/lib/postgresql/data
+    networks:
+      - agent-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openfga"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  openfga-migrate:
+    image: openfga/openfga:latest
+    container_name: agent-commerce-openfga-migrate
+    command: migrate
+    environment:
+      - OPENFGA_DATASTORE_ENGINE=postgres
+      - OPENFGA_DATASTORE_URI=postgres://openfga:openfga@openfga-postgres:5432/openfga?sslmode=disable
+    depends_on:
+      openfga-postgres:
+        condition: service_healthy
+    networks:
+      - agent-network
+
+  openfga:
+    image: openfga/openfga:latest
+    container_name: agent-commerce-openfga
+    command: run
+    environment:
+      - OPENFGA_DATASTORE_ENGINE=postgres
+      - OPENFGA_DATASTORE_URI=postgres://openfga:openfga@openfga-postgres:5432/openfga?sslmode=disable
+      - OPENFGA_LOG_FORMAT=json
+    ports:
+      - "8081:8080"   # HTTP API (host 8081 avoids clashing with agent-api)
+      - "8082:8081"   # gRPC
+      - "3000:3000"   # Playground
+    depends_on:
+      openfga-migrate:
+        condition: service_completed_successfully
+    networks:
+      - agent-network
+
+volumes:
+  openfga_pg_data:

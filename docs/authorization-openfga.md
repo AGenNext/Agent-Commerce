@@ -76,9 +76,41 @@ fga model test --tests authz/store.fga.yaml
 > the FGA CLI in this environment (CLI unavailable). Validate with the command
 > above before relying on it.
 
-## Not included (by design — "Add FGA authz model" scope)
+## Integration (Python client + tuple-sync + server)
 
-- No OpenFGA server wiring (docker-compose) or Python `check()` middleware.
-- No tuple-sync from SurrealDB writes. In a full integration, creating a
-  membership / referral / payout would also write the corresponding relationship
-  tuple to OpenFGA.
+The `authz/` package wires OpenFGA into the app:
+
+| File | Role |
+|------|------|
+| `authz/fga_client.py` | `OpenFGAClient` — async `check()` / `write_tuples()` over the OpenFGA HTTP API (uses `aiohttp`, no new dependency). |
+| `authz/tuples.py` | `EcosystemTuples` — pure event → relationship-tuple mapping. |
+| `authz/sync.py` | `AuthzSync` — writes tuples on ecosystem events and answers `can()` checks. |
+
+**Fail-open by default.** When `OPENFGA_ENABLED=false` or the store is
+unconfigured, `check()` returns `OPENFGA_DEFAULT_ALLOW` (default `true`) and
+SurrealDB stays the enforcing layer — so the app runs with or without an OpenFGA
+server. Set `OPENFGA_DEFAULT_ALLOW=false` to **fail closed** in production.
+
+`MembershipManager` accepts an optional `authz=AuthzSync(...)`; when provided, it
+writes the matching tuples on profile / program / tier / referral events.
+
+```python
+from authz import OpenFGAClient, AuthzSync
+from membership_manager import MembershipManager
+
+authz = AuthzSync(OpenFGAClient.from_env())   # reads OPENFGA_* env vars
+mgr = MembershipManager(db=db, authz=authz)
+await mgr.link_referral("alice", "carol")      # also writes the sponsor tuple
+
+allowed = await authz.can("alice", "can_view", "referral_commission:rc1")
+```
+
+### Run a server
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.openfga.yml up -d
+./scripts/load_openfga_model.sh          # prints OPENFGA_STORE_ID / OPENFGA_MODEL_ID
+# export those + OPENFGA_ENABLED=true for agent-api
+```
+
+Env vars are documented in `.env.example`. Tests: `tests/test_authz.py`.
