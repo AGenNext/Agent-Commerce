@@ -4,8 +4,6 @@
 # Then load the model (see scripts/load_openfga_model.sh) and set
 # OPENFGA_* env vars for agent-api.
 
-version: '3.8'
-
 services:
   openfga-postgres:
     image: postgres:16
@@ -54,6 +52,41 @@ services:
         condition: service_completed_successfully
     networks:
       - agent-network
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/grpc_health_probe", "-addr=0.0.0.0:8081"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # One-shot: create a store and load authz/model.fga. Prints the store id and
+  # authorization model id to its logs — set them as OPENFGA_STORE_ID /
+  # OPENFGA_MODEL_ID for agent-api to enforce (otherwise the gate is fail-open).
+  openfga-model-load:
+    image: openfga/cli:latest
+    container_name: agent-commerce-openfga-load
+    entrypoint: ["fga"]
+    command: ["store", "create", "--name", "agent-commerce", "--model", "/authz/model.fga", "--api-url", "http://openfga:8080"]
+    volumes:
+      - ./authz:/authz:ro
+    depends_on:
+      openfga:
+        condition: service_healthy
+    networks:
+      - agent-network
+    restart: on-failure
+
+  # Point agent-api at the in-network OpenFGA. Store/model ids remain unset here,
+  # so the gate stays fail-open until you supply OPENFGA_STORE_ID/OPENFGA_MODEL_ID
+  # from the openfga-model-load logs.
+  agent-api:
+    environment:
+      - OPENFGA_ENABLED=true
+      - OPENFGA_API_URL=http://openfga:8080
+      - OPENFGA_DEFAULT_ALLOW=true
+    depends_on:
+      openfga:
+        condition: service_healthy
 
 volumes:
   openfga_pg_data:
+

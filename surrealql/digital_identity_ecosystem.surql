@@ -187,7 +187,7 @@ DEFINE FUNCTION fn::redeem_epin($code: string, $member: record<users>) {
   LET $tier_rows = SELECT * FROM $pin.tier;
   LET $tier = $tier_rows[0];
 
-  LET $membership = CREATE memberships CONTENT {
+  LET $membership = (CREATE memberships CONTENT {
     member: $member,
     tier: $pin.tier,
     tenant_id: $pin.tenant_id,
@@ -196,7 +196,7 @@ DEFINE FUNCTION fn::redeem_epin($code: string, $member: record<users>) {
     activated_by_epin: $pin.id,
     starts_at: time::now(),
     expires_at: time::now() + duration::from::days(365)
-  };
+  })[0];
 
   UPDATE $pin.id MERGE {
     status: 'redeemed',
@@ -208,6 +208,8 @@ DEFINE FUNCTION fn::redeem_epin($code: string, $member: record<users>) {
   CREATE commerce_actions CONTENT {
     schema_context: 'https://schema.org',
     schema_type: 'OrderAction',
+    schema_url: 'https://schema.org/OrderAction',
+    schema_parent: 'https://schema.org/TradeAction',
     agent: $member,
     object: $membership.id,
     instrument: $pin.id,
@@ -238,7 +240,7 @@ DEFINE FUNCTION fn::record_referral_commission($membership: record<memberships>)
 
   LET $amount = $tier.price * $tier.referral_rate;
 
-  LET $commission = CREATE referral_commissions CONTENT {
+  LET $commission = (CREATE referral_commissions CONTENT {
     tenant_id: $m.tenant_id,
     beneficiary: $sponsor,
     source_member: $m.member,
@@ -248,12 +250,14 @@ DEFINE FUNCTION fn::record_referral_commission($membership: record<memberships>)
     amount: $amount,
     currency: $tier.priceCurrency,
     status: 'pending'
-  };
+  })[0];
 
   -- Audit trail, consistent with the settlement functions.
   CREATE commerce_actions CONTENT {
     schema_context: 'https://schema.org',
     schema_type: 'MoneyTransfer',
+    schema_url: 'https://schema.org/MoneyTransfer',
+    schema_parent: 'https://schema.org/TransferAction',
     agent: $sponsor,
     recipient: $sponsor,
     object: $commission.id,
@@ -276,14 +280,14 @@ DEFINE FUNCTION fn::create_referral_payout_batch($beneficiary: record<users>, $c
   LET $entries = SELECT * FROM referral_commissions WHERE beneficiary = $beneficiary AND currency = $currency AND status = 'pending';
   LET $total = math::sum($entries.amount);
 
-  LET $batch = CREATE payout_batches CONTENT {
+  LET $batch = (CREATE payout_batches CONTENT {
     tenant_id: $auth.tenant_id,
     beneficiary: $beneficiary,
     beneficiary_kind: 'user',
     currency: $currency,
     total_amount: $total,
     status: 'created'
-  };
+  })[0];
 
   FOR $entry IN $entries {
     CREATE payout_items CONTENT {

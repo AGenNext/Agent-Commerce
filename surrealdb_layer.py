@@ -12,13 +12,13 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from surrealdb import Surreal
+    from surrealdb import AsyncSurreal
 except ImportError:  # pragma: no cover
-    Surreal = None
+    AsyncSurreal = None
 
 
 class SurrealDBLayer:
-    """Thin async wrapper around the official SurrealDB Python client."""
+    """Thin async wrapper around the official SurrealDB Python client (2.x)."""
 
     def __init__(self, url: str = "ws://localhost:8000/rpc", config: dict | None = None):
         self.url = url
@@ -27,11 +27,10 @@ class SurrealDBLayer:
         self.client: Any | None = None
 
     async def connect(self) -> dict:
-        if Surreal is None:
+        if AsyncSurreal is None:
             raise RuntimeError("surrealdb package is not installed. Run: pip install surrealdb")
 
-        self.client = Surreal(self.url)
-        await self.client.connect()
+        self.client = AsyncSurreal(self.url)
 
         user = self.config.get("user")
         password = self.config.get("password")
@@ -39,7 +38,7 @@ class SurrealDBLayer:
         database = self.config.get("database", "ecommerce")
 
         if user and password:
-            await self.client.signin({"user": user, "pass": password})
+            await self.client.signin({"username": user, "password": password})
 
         await self.client.use(namespace, database)
         self.connected = True

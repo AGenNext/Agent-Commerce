@@ -105,13 +105,13 @@ DEFINE FUNCTION fn::create_payout_batch($merchant: record<merchants>, $currency:
   LET $entries = SELECT * FROM settlement_ledger_entries WHERE merchant = $merchant AND currency = $currency AND status = 'pending';
   LET $total = math::sum($entries.net_amount);
 
-  LET $batch = CREATE payout_batches CONTENT {
+  LET $batch = (CREATE payout_batches CONTENT {
     tenant_id: $auth.tenant_id,
     merchant: $merchant,
     currency: $currency,
     total_amount: $total,
     status: 'created'
-  };
+  })[0];
 
   FOR $entry IN $entries {
     CREATE payout_items CONTENT {

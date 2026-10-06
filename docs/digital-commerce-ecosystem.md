@@ -158,3 +158,8 @@ Add after the commerce and settlement migrations:
 ```bash
 python scripts/apply_surreal_migrations.py
 ```
+
+> ✅ Verified against SurrealDB v2.3.7: all migrations apply in dependency order and
+> the E-pin redemption → membership → referral-commission flow runs end-to-end
+> (`fn::redeem_epin`, `fn::record_referral_commission`). In Docker this runs
+> automatically via the `migrate` service (`docker compose up`).

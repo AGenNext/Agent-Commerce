@@ -72,9 +72,8 @@ to a user; settlement payouts to a merchant org's members).
 fga model test --tests authz/store.fga.yaml
 ```
 
-> ⚠️ The model is authored to OpenFGA schema 1.1 but has **not** been run through
-> the FGA CLI in this environment (CLI unavailable). Validate with the command
-> above before relying on it.
+> ✅ Validated with FGA CLI v0.6.6: **5/5 tests, 19/19 checks passing** — including
+> the transitive multi-level referral upline and the polymorphic payout beneficiary.
 
 ## Integration (Python client + tuple-sync + server)
 

@@ -3,6 +3,14 @@
 -- It is intentionally separate from business tables so the KG can validate and explain itself.
 
 -- ============================================================
+-- Full-text search analyzer
+-- Referenced by SEARCH indexes across the commerce and ecosystem schemas
+-- (ANALYZER ascii BM25). Defined here because this is the first migration.
+-- ============================================================
+
+DEFINE ANALYZER IF NOT EXISTS ascii TOKENIZERS class FILTERS lowercase, ascii;
+
+-- ============================================================
 -- Schema.org metamodel primitives
 -- ============================================================
 
