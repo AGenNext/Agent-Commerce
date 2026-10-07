@@ -56,11 +56,38 @@ python test_e2e.py
 
 ## Docker
 
-```bash
-# Build
-docker build -t agent-commerce .
+One command brings up SurrealDB, applies the SurrealQL migrations (in dependency
+order, via a one-shot `migrate` service), and starts the API:
 
-# Run
+```bash
+docker compose up -d
+
+# API:       http://localhost:8080   (health: /health)
+# SurrealDB: ws://localhost:8000/rpc
+```
+
+Run the end-to-end tests against the stack:
+
+```bash
+docker compose --profile test run --rm agent-test
+```
+
+### Optional: OpenFGA authorization
+
+Add the fine-grained authorization layer (OpenFGA + Postgres). It's **fail-open**
+by default, so the app works with or without it:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.openfga.yml up -d
+# then load the model and set OPENFGA_STORE_ID / OPENFGA_MODEL_ID for agent-api
+```
+
+See [docs/authorization-openfga.md](docs/authorization-openfga.md).
+
+### Build a single image
+
+```bash
+docker build -t agent-commerce .
 docker run -p 8000:8000 agent-commerce
 ```
 

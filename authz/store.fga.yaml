@@ -1,0 +1,152 @@
+# OpenFGA store test for the Agent-Commerce ecosystem authorization model.
+# Run with the FGA CLI:  fga model test --tests authz/store.fga.yaml
+name: Agent-Commerce Ecosystem
+
+model_file: ./model.fga
+
+tuples:
+  # Tenant admins and members
+  - user: user:admin_acme
+    relation: admin
+    object: tenant:acme
+  - user: user:alice
+    relation: member
+    object: tenant:acme
+
+  # Merchant org under the tenant, owned by bob
+  - user: tenant:acme
+    relation: tenant
+    object: organization:store1
+  - user: user:bob
+    relation: owner
+    object: organization:store1
+
+  # Alice's identity profile (public)
+  - user: tenant:acme
+    relation: tenant
+    object: identity_profile:alice_card
+  - user: user:alice
+    relation: owner
+    object: identity_profile:alice_card
+  - user: "user:*"
+    relation: can_view
+    object: identity_profile:alice_card
+
+  # Referral network: alice sponsors carol, carol sponsors dave
+  - user: user:alice
+    relation: account
+    object: network_node:n_alice
+  - user: user:carol
+    relation: account
+    object: network_node:n_carol
+  - user: network_node:n_alice
+    relation: sponsor
+    object: network_node:n_carol
+  - user: user:dave
+    relation: account
+    object: network_node:n_dave
+  - user: network_node:n_carol
+    relation: sponsor
+    object: network_node:n_dave
+
+  # A referral commission owed to alice
+  - user: tenant:acme
+    relation: tenant
+    object: referral_commission:rc1
+  - user: user:alice
+    relation: beneficiary
+    object: referral_commission:rc1
+
+  # Payout batches: one to a user (referral), one to a merchant org (settlement)
+  - user: tenant:acme
+    relation: tenant
+    object: payout_batch:pb_referral
+  - user: user:alice
+    relation: beneficiary
+    object: payout_batch:pb_referral
+  - user: tenant:acme
+    relation: tenant
+    object: payout_batch:pb_settlement
+  - user: organization:store1#member
+    relation: beneficiary
+    object: payout_batch:pb_settlement
+
+tests:
+  - name: profile-access
+    check:
+      - user: user:alice
+        object: identity_profile:alice_card
+        assertions:
+          can_edit: true
+          can_view: true
+      - user: user:dave           # any user can view a public profile
+        object: identity_profile:alice_card
+        assertions:
+          can_edit: false
+          can_view: true
+      - user: user:admin_acme     # tenant admin can edit anything in tenant
+        object: identity_profile:alice_card
+        assertions:
+          can_edit: true
+
+  - name: referral-network-transitive-upline
+    check:
+      - user: network_node:n_alice
+        object: network_node:n_dave
+        assertions:
+          upline: true            # alice -> carol -> dave (multi-level closure)
+      - user: network_node:n_carol
+        object: network_node:n_dave
+        assertions:
+          upline: true
+      - user: network_node:n_dave
+        object: network_node:n_alice
+        assertions:
+          upline: false           # not symmetric
+
+  - name: commission-visibility
+    check:
+      - user: user:alice
+        object: referral_commission:rc1
+        assertions:
+          can_view: true
+          can_manage: false       # only tenant admin manages
+      - user: user:admin_acme
+        object: referral_commission:rc1
+        assertions:
+          can_view: true
+          can_manage: true
+      - user: user:carol          # downline does not see alice's commission
+        object: referral_commission:rc1
+        assertions:
+          can_view: false
+
+  - name: payout-beneficiary
+    check:
+      - user: user:alice
+        object: payout_batch:pb_referral
+        assertions:
+          can_view: true
+      - user: user:bob            # org owner -> org member -> settlement payout
+        object: payout_batch:pb_settlement
+        assertions:
+          can_view: true
+      - user: user:carol
+        object: payout_batch:pb_settlement
+        assertions:
+          can_view: false
+
+  - name: merchant-org
+    check:
+      - user: user:bob
+        object: organization:store1
+        assertions:
+          can_manage: true
+      - user: user:admin_acme     # tenant admin inherits org admin
+        object: organization:store1
+        assertions:
+          can_manage: true
+      - user: user:alice
+        object: organization:store1
+        assertions:
+          can_manage: false

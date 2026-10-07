@@ -1,23 +1,52 @@
 # Docker Compose - Agent-Commerce
-# Development and integration testing stack
-
-version: '3.8'
+# One-command deployable stack: SurrealDB + schema migration + API.
+#
+#   docker compose up -d
+#
+# Add OpenFGA authorization (optional):
+#   docker compose -f docker-compose.yml -f docker-compose.openfga.yml up -d
+#
+# API:      http://localhost:8080   (health: /health, ready: /ready)
+# SurrealDB: ws://localhost:8000/rpc
+# Tests:    docker compose --profile test run --rm agent-test
 
 services:
   surrealdb:
-    image: surrealdb/surrealdb:latest
+    image: surrealdb/surrealdb:v2.3.7
     container_name: agent-commerce-db
     ports:
       - "8000:8000"
-    environment:
-      - SURREALDB_USER=agent
-      - SURREALDB_PASSWORD=commerce
-      - SURREALDB_DATABASE=commerce
     volumes:
-      - surrealdb_data:/var/lib/surrealdb
+      - surrealdb_data:/data
     networks:
       - agent-network
-    command: start --bind 0.0.0.0:8000 memory --auth
+    command: start --user root --pass root --bind 0.0.0.0:8000 rocksdb:/data/surreal.db
+    healthcheck:
+      test: ["CMD", "/surreal", "is-ready", "--endpoint", "http://127.0.0.1:8000"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # One-shot: applies SurrealQL migrations in dependency order, then exits.
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agent-commerce-migrate
+    environment:
+      - SURREALDB_URL=ws://surrealdb:8000/rpc
+      - SURREALDB_USER=root
+      - SURREALDB_PASSWORD=root
+      - SURREALDB_NAMESPACE=ucp
+      - SURREALDB_DATABASE=ecommerce
+    depends_on:
+      surrealdb:
+        condition: service_healthy
+    networks:
+      - agent-network
+    restart: "no"
+    entrypoint: python3
+    command: scripts/apply_surreal_migrations.py
 
   agent-api:
     build:
@@ -29,19 +58,22 @@ services:
     environment:
       - ENVIRONMENT=development
       - SURREALDB_URL=ws://surrealdb:8000/rpc
-      - SURREALDB_USER=agent
-      - SURREALDB_PASSWORD=commerce
+      - SURREALDB_USER=root
+      - SURREALDB_PASSWORD=root
       - SURREALDB_NAMESPACE=ucp
       - SURREALDB_DATABASE=ecommerce
       - API_KEY=local-dev-api-key
       - ADMIN_API_KEY=local-dev-admin-key
       - JWT_SECRET=local-dev-jwt-secret
+      # OpenFGA is optional and fail-open by default (see docker-compose.openfga.yml)
+      - OPENFGA_ENABLED=false
     depends_on:
-      - surrealdb
+      surrealdb:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     networks:
       - agent-network
-    volumes:
-      - ./:/workspace/agent
 
   agent-test:
     build:
@@ -49,7 +81,9 @@ services:
       dockerfile: Dockerfile
     container_name: agent-commerce-test
     environment:
-      - SURREALDB_URL=mem://
+      - SURREALDB_URL=ws://surrealdb:8000/rpc
+      - SURREALDB_USER=root
+      - SURREALDB_PASSWORD=root
       - ENVIRONMENT=test
     depends_on:
       - agent-api
@@ -66,10 +100,3 @@ volumes:
 networks:
   agent-network:
     driver: bridge
-
-# Usage:
-# docker compose up -d
-# API: http://localhost:8080
-# Health: http://localhost:8080/health
-# Readiness: http://localhost:8080/ready
-# Tests: docker compose --profile test run --rm agent-test
