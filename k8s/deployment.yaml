@@ -12,6 +12,21 @@ spec:
       labels:
         app: agent-commerce
     spec:
+      initContainers:
+        # Apply SurrealQL migrations (in dependency order) before serving.
+        - name: migrate
+          image: ghcr.io/agennext/agent-commerce:latest
+          command: ["python3", "scripts/apply_surreal_migrations.py"]
+          envFrom:
+            - secretRef:
+                name: agent-commerce-secrets
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
       containers:
         - name: agent-commerce
           image: ghcr.io/agennext/agent-commerce:latest
@@ -24,10 +39,14 @@ spec:
             httpGet:
               path: /ready
               port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /health
               port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
           resources:
             requests:
               cpu: "250m"

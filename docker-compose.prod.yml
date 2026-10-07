@@ -1,0 +1,53 @@
+# Production override for the Agent-Commerce stack.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Secrets are required from the environment (or an .env file); compose errors
+# out if any are unset. Never commit real values.
+#
+# Required env (e.g. in .env):
+#   SURREALDB_USER=...            SURREALDB_PASSWORD=...
+#   API_KEY=...                   ADMIN_API_KEY=...        JWT_SECRET=...
+# Optional (OpenFGA overlay):     OPENFGA_STORE_ID=...     OPENFGA_MODEL_ID=...
+
+services:
+  surrealdb:
+    command: start --user ${SURREALDB_USER:?set SURREALDB_USER} --pass ${SURREALDB_PASSWORD:?set SURREALDB_PASSWORD} --bind 0.0.0.0:8000 rocksdb:/data/surreal.db
+    ports: []        # keep the database internal to the compose network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
+
+  migrate:
+    environment:
+      - SURREALDB_URL=ws://surrealdb:8000/rpc
+      - SURREALDB_USER=${SURREALDB_USER:?set SURREALDB_USER}
+      - SURREALDB_PASSWORD=${SURREALDB_PASSWORD:?set SURREALDB_PASSWORD}
+      - SURREALDB_NAMESPACE=ucp
+      - SURREALDB_DATABASE=ecommerce
+
+  agent-api:
+    environment:
+      - ENVIRONMENT=production
+      - SURREALDB_URL=ws://surrealdb:8000/rpc
+      - SURREALDB_USER=${SURREALDB_USER:?set SURREALDB_USER}
+      - SURREALDB_PASSWORD=${SURREALDB_PASSWORD:?set SURREALDB_PASSWORD}
+      - SURREALDB_NAMESPACE=ucp
+      - SURREALDB_DATABASE=ecommerce
+      - API_KEY=${API_KEY:?set API_KEY}
+      - ADMIN_API_KEY=${ADMIN_API_KEY:?set ADMIN_API_KEY}
+      - JWT_SECRET=${JWT_SECRET:?set JWT_SECRET}
+      # Fail CLOSED in production: deny when OpenFGA is unreachable/unconfigured.
+      - OPENFGA_ENABLED=${OPENFGA_ENABLED:-false}
+      - OPENFGA_API_URL=${OPENFGA_API_URL:-}
+      - OPENFGA_STORE_ID=${OPENFGA_STORE_ID:-}
+      - OPENFGA_MODEL_ID=${OPENFGA_MODEL_ID:-}
+      - OPENFGA_DEFAULT_ALLOW=false
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1g

@@ -1,0 +1,35 @@
+# Keep the image small and free of secrets / local cruft.
+.git
+.gitignore
+.github
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets & local env (never bake into an image)
+.env
+.env.*
+!.env.example
+
+# Local tooling / scratch
+*.log
+history.txt
+*.tgz
+surreal
+fga
+node_modules/
+
+# Docs & tests not needed at runtime
+tests/
+docs/
+*.md
+!README.md
