@@ -60,7 +60,7 @@ DEFINE FIELD metadata ON payment_intents TYPE object DEFAULT {};
 DEFINE FIELD created_at ON payment_intents TYPE datetime DEFAULT time::now();
 DEFINE FIELD updated_at ON payment_intents TYPE datetime VALUE time::now();
 DEFINE INDEX payment_intents_session ON payment_intents FIELDS session;
-DEFINE INDEX payment_intents_idempotency UNIQUE ON payment_intents FIELDS idempotency_key;
+DEFINE INDEX payment_intents_idempotency ON payment_intents FIELDS idempotency_key UNIQUE;
 DEFINE INDEX payment_intents_status ON payment_intents FIELDS status;
 
 DEFINE TABLE promotion_redemptions SCHEMAFULL;
@@ -146,7 +146,7 @@ DEFINE FUNCTION fn::add_checkout_item($session: record<checkout_sessions>, $offe
     unit_price: $o.price,
     currency: $o.priceCurrency
   };
-  RELATE $session->checkout_session_has_item->$item.id;
+  RELATE $session->checkout_session_has_item->($item.id);
   RETURN fn::recalculate_checkout_session($session);
 };
 
@@ -177,7 +177,7 @@ DEFINE FUNCTION fn::create_payment_intent($session: record<checkout_sessions>, $
     status: 'created',
     idempotency_key: $idempotency_key
   };
-  RELATE $session->checkout_session_has_payment_intent->$intent.id;
+  RELATE $session->checkout_session_has_payment_intent->($intent.id);
   UPDATE $session MERGE { status: 'payment_pending' };
   RETURN $intent;
 };
@@ -235,7 +235,7 @@ DEFINE FUNCTION fn::place_order_from_checkout($session: record<checkout_sessions
   };
 
   UPDATE $session MERGE { status: 'completed', order: $order.id };
-  RELATE $session->checkout_session_created_order->$order.id;
+  RELATE $session->checkout_session_created_order->($order.id);
 
   CREATE commerce_actions CONTENT {
     schema_context: 'https://schema.org',

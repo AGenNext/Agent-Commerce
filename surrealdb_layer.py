@@ -12,9 +12,9 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from surrealdb import Surreal
+    from surrealdb import AsyncSurreal
 except ImportError:  # pragma: no cover
-    Surreal = None
+    AsyncSurreal = None
 
 
 class SurrealDBLayer:
@@ -27,10 +27,10 @@ class SurrealDBLayer:
         self.client: Any | None = None
 
     async def connect(self) -> dict:
-        if Surreal is None:
+        if AsyncSurreal is None:
             raise RuntimeError("surrealdb package is not installed. Run: pip install surrealdb")
 
-        self.client = Surreal(self.url)
+        self.client = AsyncSurreal(self.url)
         await self.client.connect()
 
         user = self.config.get("user")
@@ -39,7 +39,7 @@ class SurrealDBLayer:
         database = self.config.get("database", "ecommerce")
 
         if user and password:
-            await self.client.signin({"user": user, "pass": password})
+            await self.client.signin({"username": user, "password": password})
 
         await self.client.use(namespace, database)
         self.connected = True
@@ -60,8 +60,22 @@ class SurrealDBLayer:
         return await self.client.query(query, params or {})
 
     async def apply_migration_file(self, path: str | Path) -> Any:
+        """Apply a SurrealQL migration file.
+
+        Uses the raw query API so that a runtime error on one statement (for
+        example a tolerated ``DEFINE TABLE ... PERMISSIONS`` re-definition) does
+        not abort the rest of the file. A top-level error — typically a parse
+        error that rejects the whole file — is raised so that callers can skip
+        the migration on a best-effort basis.
+        """
+        self._require_client()
         migration_path = Path(path)
-        return await self.query(migration_path.read_text())
+        response = await self.client.query_raw(migration_path.read_text())
+        if isinstance(response, dict) and response.get("error"):
+            error = response["error"]
+            message = error.get("message", error) if isinstance(error, dict) else error
+            raise RuntimeError(str(message).strip())
+        return response
 
     async def create_table(self, name: str, schema: dict | None = None) -> Any:
         return await self.query(f"DEFINE TABLE {name} SCHEMALESS;")

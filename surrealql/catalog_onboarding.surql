@@ -269,7 +269,7 @@ DEFINE FUNCTION fn::add_product_draft($batch_id: record<catalog_import_batches>,
     validation_errors: IF $data.name != NONE THEN [] ELSE [{ field: 'name', message: 'Product name is required' }] END
   };
 
-  RELATE $batch_id->catalog_batch_has_product_draft->$draft.id;
+  RELATE $batch_id->catalog_batch_has_product_draft->($draft.id);
   UPDATE $batch_id SET total_items += 1;
   RETURN $draft;
 };
@@ -294,7 +294,7 @@ DEFINE FUNCTION fn::add_offer_draft($product_draft_id: record<product_drafts>, $
     validation_errors: IF $data.price != NONE AND $data.price > 0 THEN [] ELSE [{ field: 'price', message: 'Offer price must be greater than zero' }] END
   };
 
-  RELATE $product_draft_id->product_draft_has_offer_draft->$offer_draft.id;
+  RELATE $product_draft_id->product_draft_has_offer_draft->($offer_draft.id);
   RETURN $offer_draft;
 };
 
@@ -339,7 +339,7 @@ DEFINE FUNCTION fn::publish_catalog_import_batch($batch_id: record<catalog_impor
     };
 
     UPDATE $draft.id MERGE { publish_status: 'published', product: $product.id };
-    RELATE $draft.id->product_draft_published_as->$product.id;
+    RELATE ($draft.id)->product_draft_published_as->($product.id);
 
     LET $offers = SELECT * FROM offer_drafts WHERE product_draft = $draft.id AND validation_status = 'valid';
     FOR $offer_draft IN $offers {
@@ -357,8 +357,8 @@ DEFINE FUNCTION fn::publish_catalog_import_batch($batch_id: record<catalog_impor
         acceptedPaymentMethod: $offer_draft.acceptedPaymentMethod
       };
       UPDATE $offer_draft.id MERGE { publish_status: 'published', offer: $offer.id };
-      RELATE $offer_draft.id->offer_draft_published_as->$offer.id;
-      RELATE $product.id->has_offer->$offer.id SET tenant_id = $offer_draft.tenant_id;
+      RELATE ($offer_draft.id)->offer_draft_published_as->($offer.id);
+      RELATE ($product.id)->has_offer->($offer.id) SET tenant_id = $offer_draft.tenant_id;
     };
   };
 
