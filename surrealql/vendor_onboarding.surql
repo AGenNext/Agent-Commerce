@@ -241,7 +241,7 @@ DEFINE FUNCTION fn::approve_vendor_onboarding($application_id: record<vendor_onb
     merchant: $merchant.id
   };
 
-  RELATE $application_id->onboarding_application_creates_merchant->$merchant.id;
+  RELATE $application_id->onboarding_application_creates_merchant->($merchant.id);
 
   UPDATE onboarding_steps SET status = 'completed', completed_at = time::now() WHERE application = $application_id AND name = 'approval';
 
